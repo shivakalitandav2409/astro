@@ -1,13 +1,21 @@
 export default {
   async fetch(request, env) {
+    const url = new URL(request.url);
+
     // Try serving the asset directly (ASSETS binding roots at dist/)
     try {
       const res = await env.ASSETS.fetch(request);
-      if (res.status !== 404) return res;
+      // Only return if it's a real asset (not a redirect or 404)
+      if (res.status !== 404 && res.status !== 307 && res.status !== 301) {
+        return res;
+      }
     } catch {}
-    // SPA fallback: always serve index.html for client-side routing
-    return env.ASSETS.fetch(
-      new Request(new URL("/index.html", request.url), request)
-    );
+
+    // SPA fallback: serve index.html for all client-side routes
+    const indexUrl = new URL("/index.html", url.origin);
+    return env.ASSETS.fetch(new Request(indexUrl.toString(), {
+      method: "GET",
+      headers: request.headers,
+    }));
   }
 };

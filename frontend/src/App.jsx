@@ -4,6 +4,7 @@ import { AppProvider, useApp } from "./context/AppContext";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import UpgradeModal from "./components/UpgradeModal";
+import MobileBottomNav from "./components/MobileBottomNav";
 
 // Portal pages
 import PortalLanding from "./pages/portal/PortalLanding";
@@ -88,6 +89,7 @@ export default function App() {
             </Routes>
           </main>
           <Footer />
+          <MobileBottomNav />
         </div>
       </AppProvider>
     </BrowserRouter>

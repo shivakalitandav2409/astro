@@ -727,14 +727,9 @@ def get_kundli_bundle(req: KundliBundleReq, account: dict[str, Any] | None = Dep
 
 
 @app.post("/api/kundli/custom-pdf")
-def download_custom_kundli_pdf(req: KundliBundleReq, account: dict[str, Any] = Depends(get_current_account)):
+def download_custom_kundli_pdf(req: KundliBundleReq, account: dict[str, Any] | None = Depends(get_optional_account)):
     if not (req.dob and req.birth_time):
         raise HTTPException(status_code=400, detail="dob and birth_time required.")
-    if account.get("reg_plan_id", 0) < 2:
-        raise HTTPException(
-            status_code=403,
-            detail="Custom client Kundali PDF export requires GDVPanel Platinum Plan (unlimited PDFs).",
-        )
     member = {
         "id": 0,
         "name": req.name or "Client Chart",
@@ -746,7 +741,7 @@ def download_custom_kundli_pdf(req: KundliBundleReq, account: dict[str, Any] = D
         "longitude": req.longitude,
         "tz_offset": req.tz_offset,
         "plan_id": 2,
-        "plan_name": "Platinum Unlimited Client Report",
+        "plan_name": "Full Kundali Report (Swiss Ephemeris)",
     }
     try:
         bundle = full_kundli_bundle(member, target_year=req.target_year)
@@ -769,12 +764,6 @@ def download_kundli_pdf(member_id: int, account: dict[str, Any] = Depends(get_cu
     member = dict(row)
     if member["account_id"] != account["id"] and account.get("role") != "crm_agent":
         raise HTTPException(status_code=403, detail="Access denied for this family profile.")
-    is_platinum = account.get("reg_plan_id", 0) >= 2
-    if member["plan_id"] == 0 and not is_platinum:
-        raise HTTPException(
-            status_code=403,
-            detail="Kundali PDF download requires Member Subscription or GDVPanel Platinum Plan (unlimited PDFs).",
-        )
     bundle = full_kundli_bundle(member)
     pdf_bytes = generate_kundli_pdf(bundle)
     return Response(

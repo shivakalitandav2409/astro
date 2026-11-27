@@ -7,7 +7,7 @@ import { useApp } from "../../context/AppContext";
 export default function CourseDetailsPage() {
   const { id } = useParams();
   const courseId = Number(id) || 1;
-  const { account, refreshAccountState, setPlayingAudio, showToast } = useApp();
+  const { account, refreshAccountState, setPlayingAudio, demoLogin, showToast } = useApp();
   const [course, setCourse] = useState(null);
   const [activeVideo, setActiveVideo] = useState(null);
   const [pendingOrder, setPendingOrder] = useState(null);
@@ -29,11 +29,10 @@ export default function CourseDetailsPage() {
   }, [courseId, account?.id]);
 
   async function buyCourse() {
-    if (!account) {
-      showToast("Please sign in first to enroll.", "info");
-      return;
-    }
     try {
+      if (!account) {
+        await demoLogin("consumer@astro.local");
+      }
       const res = await apiFetch("/checkout/create-order", { method: "POST", body: JSON.stringify({ order_type: "course", course_id: courseId }) });
       setPendingOrder(res.order);
     } catch (err) {

@@ -78,6 +78,10 @@ def generate_kundli_pdf(bundle: dict[str, Any]) -> bytes:
         )
         pdf.ln(1)
 
+    pdf.ln(3)
+    pdf.set_font("Helvetica", "I", 8)
+    pdf.cell(pdf.epw, 5, _safe_ascii("ASTRO · Explore the Cosmos & Destiny | Developed by Shivang Saxena"), new_x="LMARGIN", new_y="NEXT", align="C")
+
     return bytes(pdf.output())
 
 
@@ -102,4 +106,8 @@ def generate_order_invoice_pdf(order: dict[str, Any], items: list[dict[str, Any]
     pdf.set_font("Helvetica", "B", 11)
     pdf.cell(pdf.epw, 7, _safe_ascii(f"Subtotal: INR {order['subtotal']} | Discount: INR {order['discount']} | Credits: INR {order['credits_used']} | GST: INR {order['gst']}"), new_x="LMARGIN", new_y="NEXT")
     pdf.cell(pdf.epw, 8, _safe_ascii(f"Total Paid: INR {order['total_amount']}"), new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(3)
+    pdf.set_font("Helvetica", "I", 8)
+    pdf.cell(pdf.epw, 5, _safe_ascii("ASTRO · Explore the Cosmos & Destiny | Developed by Shivang Saxena"), new_x="LMARGIN", new_y="NEXT", align="C")
+
     return bytes(pdf.output())

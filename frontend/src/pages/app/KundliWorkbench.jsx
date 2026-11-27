@@ -178,11 +178,14 @@ export default function KundliWorkbench() {
             aria-label="Varshphal Year"
             className="w-24 rounded-xl border border-slate-700 bg-slate-900 px-2.5 py-2 text-xs text-white"
           />
-          {activeMember && (
-            <button type="button" onClick={handleDownloadPdf} className="gold-btn flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs">
-              <Download className="h-3.5 w-3.5" /> Kundali PDF
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={handleDownloadPdf}
+            className="gold-btn flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs"
+            title="Download Full Kundali PDF Report"
+          >
+            <Download className="h-3.5 w-3.5" /> Download PDF Report
+          </button>
         </div>
       </div>
 

@@ -6,7 +6,7 @@ import { useApp } from "../../context/AppContext";
 
 export default function PortalRegistration() {
   const { id } = useParams();
-  const { account, refreshAccountState, showToast } = useApp();
+  const { account, refreshAccountState, demoLogin, showToast } = useApp();
   const navigate = useNavigate();
   const [plans, setPlans] = useState([]);
   const [selectedPlanId, setSelectedPlanId] = useState(Number(id) || 2);
@@ -34,11 +34,10 @@ export default function PortalRegistration() {
 
   async function createRegOrder(e) {
     e.preventDefault();
-    if (!account) {
-      showToast("Please sign in first (or click Demo Login) before completing checkout.", "info");
-      return;
-    }
     try {
+      if (!account) {
+        await demoLogin("gold@gdvpanel.local");
+      }
       const res = await apiFetch("/checkout/create-order", {
         method: "POST",
         body: JSON.stringify({ order_type: "portal_registration", plan_id: selectedPlanId, reg_details: form }),

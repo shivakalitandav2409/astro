@@ -4,7 +4,7 @@ import { apiFetch } from "../../api";
 import { useApp } from "../../context/AppContext";
 
 export default function ShopCartPage() {
-  const { account, refreshAccountState, setPlayingAudio, showToast } = useApp();
+  const { account, refreshAccountState, setPlayingAudio, demoLogin, showToast } = useApp();
   const [products, setProducts] = useState([]);
   const [filterType, setFilterType] = useState("all");
   const [cart, setCart] = useState({ items: [], subtotal: 0, reward_credits: 0 });
@@ -48,11 +48,10 @@ export default function ShopCartPage() {
   }, [account?.id, filterType]);
 
   async function addToCart(pid) {
-    if (!account) {
-      showToast("Please sign in to add remedies to your cart.", "info");
-      return;
-    }
     try {
+      if (!account) {
+        await demoLogin("consumer@astro.local");
+      }
       const res = await apiFetch("/cart", { method: "POST", body: JSON.stringify({ product_id: pid, quantity: 1 }) });
       setCart(res);
       await refreshAccountState();

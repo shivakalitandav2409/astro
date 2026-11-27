@@ -15,7 +15,7 @@ import { apiFetch } from "../../api";
 import { useApp } from "../../context/AppContext";
 
 export default function ConsumerHome() {
-  const { account, activeMember, lang, openUpgradeModal, showToast } = useApp();
+  const { account, activeMember, lang, openUpgradeModal, demoLogin, showToast } = useApp();
   const [categories, setCategories] = useState([]);
   const [searchQ, setSearchQ] = useState("");
   const [searchResults, setSearchResults] = useState([]);
@@ -56,13 +56,22 @@ export default function ConsumerHome() {
   }, [searchQ]);
 
   async function handleCategoryClick(cat) {
-    if (!account || !activeMember) {
-      showToast("Sign in (or click Demo Login) to analyze a profile.", "info");
-      return;
+    let currAccount = account;
+    let currMember = activeMember;
+    if (!currAccount || !currMember) {
+      try {
+        const res = await demoLogin("consumer@astro.local");
+        currAccount = res.account;
+        currMember = res.members?.[0] || null;
+      } catch {
+        showToast("Sign in (or click Demo Login) to analyze a profile.", "info");
+        return;
+      }
     }
-    const isUnlocked = activeMember.plan_id !== 0 || account.reg_plan_id >= 2;
+    if (!currMember) return;
+    const isUnlocked = currMember.plan_id !== 0 || currAccount?.reg_plan_id >= 2;
     if (!isUnlocked) {
-      openUpgradeModal(`'${cat.title}' predictions require an active Membership Plan for ${activeMember.name}.`);
+      openUpgradeModal(`'${cat.title}' predictions require an active Membership Plan for ${currMember.name}.`);
       return;
     }
     if (cat.id === 44) {

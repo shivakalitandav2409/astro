@@ -24,8 +24,6 @@ import DashaExplorer from "./pages/app/DashaExplorer";
 import MatchmakingPage from "./pages/app/MatchmakingPage";
 import PanchangPage from "./pages/app/PanchangPage";
 import ProfilesSavedPage from "./pages/app/ProfilesSavedPage";
-import ShopCartPage from "./pages/app/ShopCartPage";
-import ConsultMediaPage from "./pages/app/ConsultMediaPage";
 
 function ToastOverlay() {
   const { toast } = useApp();
@@ -83,8 +81,8 @@ export default function App() {
               <Route path="/app/panchang" element={<PanchangPage />} />
               <Route path="/app/profiles" element={<ProfilesSavedPage />} />
               <Route path="/app/profile" element={<Navigate to="/app/profiles" replace />} />
-              <Route path="/app/shop" element={<ShopCartPage />} />
-              <Route path="/app/media" element={<ConsultMediaPage />} />
+              <Route path="/app/shop" element={<Navigate to="/app" replace />} />
+              <Route path="/app/media" element={<Navigate to="/app" replace />} />
 
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

@@ -5,7 +5,6 @@ import {
   Globe,
   LogOut,
   Menu,
-  ShoppingCart,
   Sparkles,
   User,
   UserCheck,
@@ -47,7 +46,6 @@ export default function Navbar() {
     { to: "/app/matchmaking", label: t("matchmaking") },
     { to: "/app/panchang", label: t("panchang") },
     { to: "/app/profiles", label: t("profiles") },
-    { to: "/app/shop", label: t("store") },
   ];
 
   return (
@@ -119,20 +117,6 @@ export default function Navbar() {
             <Globe className="h-3.5 w-3.5 text-amber-400" />
             <span>{lang === "En" ? "हिं" : "En"}</span>
           </button>
-
-          {/* Store Cart */}
-          <Link
-            to="/app/shop"
-            className="relative rounded-xl border border-slate-700/80 bg-slate-900/90 p-1.5 text-slate-200 hover:border-amber-400/60"
-            title={t("store")}
-          >
-            <ShoppingCart className="h-4 w-4" />
-            {cartCount > 0 && (
-              <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-slate-950">
-                {cartCount}
-              </span>
-            )}
-          </Link>
 
           {/* Single Clear Login / Continue Button vs Profile */}
           {account ? (

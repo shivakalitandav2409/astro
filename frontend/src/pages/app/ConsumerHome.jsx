@@ -18,8 +18,6 @@ export default function ConsumerHome() {
   const { account, activeMember, lang, openUpgradeModal, demoLogin, showToast } = useApp();
   const isHindi = lang === "हिं";
   const [categories, setCategories] = useState([]);
-  const [searchQ, setSearchQ] = useState("");
-  const [searchResults, setSearchResults] = useState([]);
   const [upsellShownForId, setUpsellShownForId] = useState(null);
   const [subDialog, setSubDialog] = useState(null);
   const [subStatus, setSubStatus] = useState("Unmarried");
@@ -31,19 +29,6 @@ export default function ConsumerHome() {
     apiFetch("/categories").then((r) => setCategories(r.categories || [])).catch(() => {});
     apiFetch("/horoscope/daily").then(setDailyHoroscope).catch(() => {});
   }, []);
-
-  useEffect(() => {
-    if (!searchQ.trim()) {
-      setSearchResults([]);
-      return;
-    }
-    const t = setTimeout(() => {
-      apiFetch(`/products?q=${encodeURIComponent(searchQ)}`)
-        .then((r) => setSearchResults(r.products || []))
-        .catch(() => {});
-    }, 220);
-    return () => clearTimeout(t);
-  }, [searchQ]);
 
   async function handleCategoryClick(cat) {
     let currAccount = account;
@@ -135,37 +120,23 @@ export default function ConsumerHome() {
           </div>
         </div>
 
-        <div className="space-y-3">
-          <div className="relative">
-            <Search className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
-            <input
-              type="text"
-              value={searchQ}
-              onChange={(e) => setSearchQ(e.target.value)}
-              placeholder={lang === "En" ? "Search Remedies, Yantras, Lal Kitab, Mantras..." : "उपाय, यंत्र, मंत्र और लाल किताब खोजें..."}
-              className="w-full rounded-xl border border-slate-700 bg-slate-950/90 pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:border-amber-400 focus:outline-none"
-            />
-          </div>
-          {searchResults.length > 0 && (
-            <div className="rounded-xl border border-slate-800 bg-slate-950 p-2 max-h-44 overflow-y-auto space-y-1">
-              {searchResults.map((p) => (
-                <Link key={p.id} to="/app/shop" className="flex items-center justify-between rounded-lg px-3 py-2 text-xs hover:bg-slate-800">
-                  <span className="text-slate-100">{p.title}</span>
-                  <span className="font-bold text-amber-400">{p.price === 0 ? "Free Audio" : `₹${p.price}`}</span>
-                </Link>
-              ))}
-            </div>
-          )}
-          <div className="grid grid-cols-2 gap-3 text-xs">
-            <Link to="/app/dashas" className="cosmic-hover rounded-2xl border border-slate-800 bg-slate-900/70 p-3.5 transition">
-              <div className="font-bold text-amber-300">{lang === "En" ? "Dashas & Varshphal" : "दशा और वर्षफल"}</div>
-              <div className="text-slate-400 mt-0.5">{lang === "En" ? "Mahadasha, Antar & 35-Yr Cycles" : "महादशा, अंतर्दशा एवं 35 साला चक्र"}</div>
-            </Link>
-            <Link to="/app/panchang" className="cosmic-hover rounded-2xl border border-slate-800 bg-slate-900/70 p-3.5 transition">
-              <div className="font-bold text-emerald-300">{lang === "En" ? "Choghadiya Panchang" : "चौघड़िया पंचांग"}</div>
-              <div className="text-slate-400 mt-0.5">{lang === "En" ? "Live Sunrise/Sunset Muhurat" : "सटीक सूर्योदय और शुभ मुहूर्त"}</div>
-            </Link>
-          </div>
+        <div className="grid grid-cols-2 gap-3 text-xs">
+          <Link to="/app/dashas" className="cosmic-hover rounded-2xl border border-slate-800 bg-slate-900/70 p-4 transition space-y-1">
+            <div className="font-bold text-amber-300">{lang === "En" ? "Dashas & Varshphal" : "दशा और वर्षफल"}</div>
+            <div className="text-slate-400 text-[11px] leading-relaxed">{lang === "En" ? "Mahadasha, Antar & 35-Yr Cycles" : "महादशा, अंतर्दशा एवं 35 साला चक्र"}</div>
+          </Link>
+          <Link to="/app/panchang" className="cosmic-hover rounded-2xl border border-slate-800 bg-slate-900/70 p-4 transition space-y-1">
+            <div className="font-bold text-emerald-300">{lang === "En" ? "Choghadiya Panchang" : "चौघड़िया पंचांग"}</div>
+            <div className="text-slate-400 text-[11px] leading-relaxed">{lang === "En" ? "Live Sunrise/Sunset & Dates" : "सटीक सूर्योदय और 1-6 माह की शुभ तारीखें"}</div>
+          </Link>
+          <Link to="/app/kundli" className="cosmic-hover rounded-2xl border border-slate-800 bg-slate-900/70 p-4 transition space-y-1">
+            <div className="font-bold text-sky-300">{lang === "En" ? "KP Bhav Chalit Chart" : "KP भाव चलित कस्प"}</div>
+            <div className="text-slate-400 text-[11px] leading-relaxed">{lang === "En" ? "12 Placidus Cusps & Sub-Lords" : "12 कस्प, उप-स्वामी व चलित ग्रह"}</div>
+          </Link>
+          <Link to="/app/kundli" className="cosmic-hover rounded-2xl border border-slate-800 bg-slate-900/70 p-4 transition space-y-1">
+            <div className="font-bold text-rose-300">{lang === "En" ? "Visual Upay Map" : "सचित्र उपाय नक्शा"}</div>
+            <div className="text-slate-400 text-[11px] leading-relaxed">{lang === "En" ? "12-House Lal Kitab Substances" : "12 भावों के भौतिक उपाय द्रव्य व सावधानियां"}</div>
+          </Link>
         </div>
       </div>
 

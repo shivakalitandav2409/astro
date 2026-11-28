@@ -71,11 +71,6 @@ export default function Footer() {
                 {isHindi ? "दैनिक चौघड़िया पंचांग एवं राहु काल" : "Choghadiya Panchang & Rahu Kaal"}
               </Link>
             </li>
-            <li>
-              <Link to="/app/shop" className="hover:text-amber-300 transition">
-                {isHindi ? "वैदिक उपाय, किट एवं निःशुल्क मंत्र" : "Remedies, Kits & Free Mantras"}
-              </Link>
-            </li>
           </ul>
         </div>
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Calendar, Clock, Lock, Sparkles } from "lucide-react";
+import { ArrowRight, Calendar, Clock, Lock, ShieldAlert, Sparkles, XCircle } from "lucide-react";
 import { apiFetch } from "../../api";
 import { useApp } from "../../context/AppContext";
 
@@ -9,6 +9,8 @@ export default function DashaExplorer() {
   const [bundle, setBundle] = useState(null);
   const [tab, setTab] = useState("mahadasha"); // mahadasha | antardasha | pratyantardasha | lk_dasha | age_ranges
   const [ageMode, setAgeMode] = useState("all"); // all | child | adult
+  const [selectedDashaTile, setSelectedDashaTile] = useState(null);
+  const [timelineFilter, setTimelineFilter] = useState("all"); // all | past | future
 
   useEffect(() => {
     const payload = activeMember
@@ -240,9 +242,212 @@ export default function DashaExplorer() {
                   {isHindi ? item.summary_hi || item.summary : item.summary || "Sub-transit period active."}
                 </p>
               )}
+
+              {/* Tap for Event Timeline Helper CTA */}
+              <div
+                onClick={() => setSelectedDashaTile(item)}
+                className="mt-2 flex items-center justify-between rounded-xl bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 text-[11px] font-semibold text-amber-300 hover:bg-amber-500/20 transition cursor-pointer"
+              >
+                <span>{isHindi ? "टाइल पर टैप करें: जीवन घटनाएं व भविष्यवाणियां" : "Tap tile for life events & predictions"}</span>
+                <ArrowRight className="h-3.5 w-3.5 text-amber-400" />
+              </div>
             </div>
           ))}
       </div>
+
+      {/* Dasha Tile-Tap Linked Event Timeline Modal */}
+      {selectedDashaTile && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-3 sm:p-4 backdrop-blur-md animate-fade-up overflow-y-auto">
+          <div className="cosmic-card w-full max-w-3xl rounded-3xl p-5 sm:p-6 space-y-4 border border-amber-500/40 shadow-2xl max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-500/15 text-amber-400 font-bold text-sm">
+                  <Sparkles className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    <span>
+                      {selectedDashaTile.maha_planet
+                        ? `${isHindi ? selectedDashaTile.maha_planet_hi || selectedDashaTile.maha_planet : selectedDashaTile.maha_planet} / `
+                        : ""}
+                      {selectedDashaTile.antar_planet
+                        ? `${isHindi ? selectedDashaTile.antar_planet_hi || selectedDashaTile.antar_planet : selectedDashaTile.antar_planet} / `
+                        : ""}
+                      {isHindi
+                        ? selectedDashaTile.planet_hi || selectedDashaTile.planet || selectedDashaTile.label
+                        : selectedDashaTile.planet || selectedDashaTile.label}
+                    </span>
+                    {selectedDashaTile.is_current && (
+                      <span className="rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-[10px] font-bold text-emerald-300">
+                        {isHindi ? "वर्तमान सक्रिय दशा" : "Current Active"}
+                      </span>
+                    )}
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    {selectedDashaTile.start_date || selectedDashaTile.start_year || selectedDashaTile.start} →{" "}
+                    {selectedDashaTile.end_date || selectedDashaTile.end_year || selectedDashaTile.end}{" "}
+                    {selectedDashaTile.duration_years
+                      ? `(${selectedDashaTile.duration_years} ${isHindi ? "वर्ष" : "years"})`
+                      : selectedDashaTile.years
+                      ? `(${selectedDashaTile.years} ${isHindi ? "वर्ष" : "years"})`
+                      : ""}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedDashaTile(null)}
+                className="rounded-xl border border-slate-700 bg-slate-900 p-1.5 text-slate-400 hover:text-white transition"
+              >
+                <XCircle className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* In-Modal Dasha Prediction & Remedy Overview */}
+            <div className="rounded-2xl border border-amber-500/25 bg-amber-950/15 p-4 space-y-2">
+              <div className="text-xs font-bold text-amber-300">
+                {isHindi ? "दशा अवधि प्रभाव एवं लाल किताब मार्गदर्शन" : "Dasha Period Influence & Lal Kitab Guidance"}
+              </div>
+              <p className="text-xs text-slate-200 leading-relaxed">
+                {isHindi
+                  ? selectedDashaTile.adult_prediction_hi || selectedDashaTile.summary_hi || selectedDashaTile.summary
+                  : selectedDashaTile.adult_prediction_en || selectedDashaTile.summary}
+              </p>
+              {selectedDashaTile.child_upay_hi && (
+                <div className="pt-1 text-[11px] text-amber-200">
+                  <strong>{isHindi ? "विशिष्ट लाल किताब उपाय: " : "Lal Kitab Upay: "}</strong>
+                  <span>{isHindi ? selectedDashaTile.child_upay_hi : selectedDashaTile.child_upay_en}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Filter Buttons for Timeline */}
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">
+              <div className="text-xs font-bold text-slate-300">
+                {isHindi ? "जीवन घटनाक्रम एवं भविष्यवाणियाँ (Timeline):" : "Life Events & Prediction Timeline:"}
+              </div>
+              <div className="flex items-center gap-1 rounded-xl border border-slate-800 bg-slate-950 p-1 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setTimelineFilter("all")}
+                  className={`rounded-lg px-2.5 py-1 font-semibold transition ${
+                    timelineFilter === "all" ? "bg-amber-500 text-slate-950" : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  {isHindi ? "सभी (All)" : "All"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTimelineFilter("past")}
+                  className={`rounded-lg px-2.5 py-1 font-semibold transition ${
+                    timelineFilter === "past" ? "bg-amber-500 text-slate-950" : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  {isHindi ? "📜 पिछली घटनाएं (Past)" : "Past Verified"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTimelineFilter("future")}
+                  className={`rounded-lg px-2.5 py-1 font-semibold transition ${
+                    timelineFilter === "future" ? "bg-amber-500 text-slate-950" : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  {isHindi ? "🔮 आगामी भविष्य (Future)" : "Future Predictions"}
+                </button>
+              </div>
+            </div>
+
+            {/* Filtered Life Events List */}
+            <div className="space-y-3">
+              {(bundle?.life_events || [])
+                .filter((ev) => {
+                  const curYear = new Date().getFullYear();
+                  if (timelineFilter === "past") return ev.type === "Past Verification" || ev.year <= curYear;
+                  if (timelineFilter === "future") return ev.type !== "Past Verification" && ev.year > curYear;
+                  return true;
+                })
+                .map((ev, eIdx) => {
+                  const isPast = ev.type === "Past Verification";
+                  const isCaution = (ev.caution_level || "").toLowerCase().includes("caution") || (ev.caution_level || "").toLowerCase().includes("alert");
+                  return (
+                    <div
+                      key={eIdx}
+                      className={`rounded-2xl border p-3.5 text-xs space-y-2 transition ${
+                        isCaution
+                          ? "border-rose-500/35 bg-rose-950/20"
+                          : isPast
+                          ? "border-slate-800 bg-slate-900/80"
+                          : "border-emerald-500/30 bg-emerald-950/15"
+                      }`}
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-white text-sm">
+                            {ev.year} ({isHindi ? `आयु: ${ev.age} वर्ष` : `Age ${ev.age}`})
+                          </span>
+                          <span className="text-[11px] text-slate-400">
+                            {isHindi ? ev.category_hi : ev.category}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                              isPast
+                                ? "bg-slate-800 text-slate-300"
+                                : "bg-indigo-500/20 text-indigo-300 border border-indigo-500/40"
+                            }`}
+                          >
+                            {isPast
+                              ? isHindi ? "सत्यापित भूतकाल" : "Past Verified"
+                              : isHindi ? "आगामी सम्भावना" : "Future Window"}
+                          </span>
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                              isCaution
+                                ? "bg-rose-500/20 text-rose-300 border border-rose-500/30"
+                                : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                            }`}
+                          >
+                            {ev.caution_level}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="font-semibold text-amber-200">
+                        {isHindi ? ev.headline_hi : ev.headline_en}
+                      </div>
+
+                      <p className="text-slate-300 leading-relaxed">
+                        {isHindi ? ev.description_hi : ev.description_en}
+                      </p>
+
+                      <div className="rounded-xl bg-slate-950/60 p-2 text-slate-200 flex items-start gap-1.5 border border-slate-800/80 text-[11px]">
+                        <Sparkles className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
+                        <div>
+                          <strong className="text-amber-300">
+                            {isHindi ? "मार्गदर्शन एवं लाल किताब सुरक्षा: " : "Guidance & Protection: "}
+                          </strong>
+                          <span>{isHindi ? ev.guidance_hi : ev.guidance_en}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+
+            <div className="flex justify-end pt-2 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => setSelectedDashaTile(null)}
+                className="gold-btn rounded-xl px-5 py-2 text-xs font-bold"
+              >
+                {isHindi ? "बंद करें" : "Close"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

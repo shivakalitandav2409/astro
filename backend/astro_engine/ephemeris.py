@@ -78,6 +78,94 @@ PLANET_LIST = [
 
 EXALT_SIGN = {"Sun": 0, "Moon": 1, "Mars": 9, "Mercury": 5, "Jupiter": 3, "Venus": 11, "Saturn": 6, "Rahu": 1, "Ketu": 7}
 DEBIL_SIGN = {"Sun": 6, "Moon": 7, "Mars": 3, "Mercury": 11, "Jupiter": 9, "Venus": 5, "Saturn": 0, "Rahu": 7, "Ketu": 1}
+
+
+def calculate_kp_sub_lords(lon: float) -> tuple[str, str, str, str]:
+    """
+    Calculate Krishnamurti Paddhati (KP) 4-Fold Cuspal Sub-Lords:
+    1. RL: Rashi Lord (राशि स्वामी)
+    2. NL: Nakshatra Lord (नक्षत्र स्वामी)
+    3. SL: Sub Lord (उप-स्वामी)
+    4. SSL: Sub-Sub Lord (उप-उप-स्वामी)
+    Based on Vimshottari 120-year proportions across 800 arc minutes of each Nakshatra.
+    """
+    lon = lon % 360.0
+    rashi_idx = int(lon // 30.0)
+    rl = RASHI_LORDS[rashi_idx]
+
+    tot_min = lon * 60.0
+    nak_idx = int(tot_min // 800.0) % 27
+    rem_nak_min = tot_min % 800.0
+
+    start_sub_idx = nak_idx % 9
+    nl = DASHA_ORDER[start_sub_idx][0]
+
+    # Sub Lord (SL)
+    sl = nl
+    sub_span = 800.0 * (DASHA_ORDER[start_sub_idx][1] / 120.0)
+    rem_sub_min = rem_nak_min
+    sl_idx = start_sub_idx
+    for i in range(9):
+        curr_p_idx = (start_sub_idx + i) % 9
+        span = 800.0 * (DASHA_ORDER[curr_p_idx][1] / 120.0)
+        if rem_nak_min <= span or i == 8:
+            sl = DASHA_ORDER[curr_p_idx][0]
+            sl_idx = curr_p_idx
+            sub_span = span
+            rem_sub_min = rem_nak_min
+            break
+        rem_nak_min -= span
+
+    # Sub-Sub Lord (SSL)
+    ssl = sl
+    rem_ssl_min = rem_sub_min
+    for j in range(9):
+        curr_ssl_idx = (sl_idx + j) % 9
+        ssl_span = sub_span * (DASHA_ORDER[curr_ssl_idx][1] / 120.0)
+        if rem_ssl_min <= ssl_span or j == 8:
+            ssl = DASHA_ORDER[curr_ssl_idx][0]
+            break
+        rem_ssl_min -= ssl_span
+
+    return rl, nl, sl, ssl
+
+
+def assign_jaimini_karakas(planets: list[dict[str, Any]]) -> None:
+    """
+    Assign 7 Classical Jaimini Karakas based on decreasing degrees within sign (0° to 30°):
+    1. AK: Atmakaraka (आत्मकारक) - Highest degree, represents soul, destiny, core self.
+    2. AmK: Amatyakaraka (अमात्यकारक) - 2nd, represents career, intellect, executive power.
+    3. BK: Bhratrikaraka (भ्रातृकारक) - 3rd, siblings, advisors, courage.
+    4. MK: Matrikaraka (मातृकारक) - 4th, mother, emotional peace, assets.
+    5. PK: Putrakaraka (पुत्रकारक) - 5th, children, creative wisdom, progeny.
+    6. GK: Gnatikaraka (ज्ञातिकारक) - 6th, obstacles, competitors, illness, kinsmen.
+    7. DK: Darakaraka (दाराकारक) - 7th (lowest), spouse, business partnerships.
+    """
+    seven = [p for p in planets if p.get("planet") in ("Sun", "Moon", "Mars", "Mercury", "Jupiter", "Venus", "Saturn")]
+    seven.sort(key=lambda x: (x.get("degree_in_sign") if "degree_in_sign" in x else (x.get("longitude", x.get("lon", 0.0)) % 30.0)), reverse=True)
+
+    karaka_defs = [
+        ("AK", "Atmakaraka (Soul)", "आत्मकारक (आत्मा व मुख्य नियति)"),
+        ("AmK", "Amatyakaraka (Career)", "अमात्यकारक (आजीविका व बुद्धि)"),
+        ("BK", "Bhratrikaraka (Siblings)", "भ्रातृकारक (पराक्रम व बंधु)"),
+        ("MK", "Matrikaraka (Mother/Happiness)", "मातृकारक (माता व गृह सुख)"),
+        ("PK", "Putrakaraka (Children/Wisdom)", "पुत्रकारक (संतान व विवेक)"),
+        ("GK", "Gnatikaraka (Obstacles)", "ज्ञातिकारक (शत्रु, रोग व बाधा)"),
+        ("DK", "Darakaraka (Spouse/Partnership)", "दाराकारक (जीवनसाथी व साझेदारी)"),
+    ]
+
+    for idx, p in enumerate(seven):
+        code, name_en, name_hi = karaka_defs[idx]
+        p["karaka_code"] = code
+        p["karaka_en"] = name_en
+        p["karaka_hi"] = name_hi
+
+    return planets
+    for p in planets:
+        if p.get("planet") in ("Rahu", "Ketu"):
+            p["karaka_code"] = "—"
+            p["karaka_en"] = "N/A"
+            p["karaka_hi"] = "—"
 OWN_SIGNS = {
     "Sun": {4}, "Moon": {3}, "Mars": {0, 7}, "Mercury": {2, 5},
     "Jupiter": {8, 11}, "Venus": {1, 6}, "Saturn": {9, 10}, "Rahu": {10}, "Ketu": {7},
@@ -327,6 +415,21 @@ def compute_chart(
         "is_benefic": k_dig in ("Exalted", "Own Sign", "Friendly") or k_house in (3, 6, 9, 11),
     })
 
+    # Enrich planets with KP 4-fold Cuspal Sub-Lords (RL-NL-SL-SSL)
+    for p in planets:
+        rl, nl, sl, ssl = calculate_kp_sub_lords(p["longitude"])
+        p["rl"] = rl
+        p["nl"] = nl
+        p["sl"] = sl
+        p["ssl"] = ssl
+        p["rl_hi"] = PLANET_NAMES_HI.get(rl, rl)
+        p["nl_hi"] = PLANET_NAMES_HI.get(nl, nl)
+        p["sl_hi"] = PLANET_NAMES_HI.get(sl, sl)
+        p["ssl_hi"] = PLANET_NAMES_HI.get(ssl, ssl)
+
+    # Assign 7 Jaimini Karakas (AK to DK)
+    assign_jaimini_karakas(planets)
+
     # Compute current Gochar transits relative to natal Lagna
     gochar_planets: list[dict[str, Any]] = []
     for name, body_id, abbr, _ in PLANET_LIST:
@@ -393,6 +496,8 @@ def compute_chart(
         for h in range(1, 13)
     ]
 
+    asc_rl, asc_nl, asc_sl, asc_ssl = calculate_kp_sub_lords(asc_deg)
+
     return {
         "jd_ut": round(jd_ut, 6),
         "effective_tz_offset": eff_offset,
@@ -408,6 +513,14 @@ def compute_chart(
             "degree": round(asc_deg % 30.0, 4),
             "dms": _fmt_dms(asc_deg % 30.0),
             "mc_dms": _fmt_dms(mc_deg % 30.0),
+            "rl": asc_rl,
+            "nl": asc_nl,
+            "sl": asc_sl,
+            "ssl": asc_ssl,
+            "rl_hi": PLANET_NAMES_HI.get(asc_rl, asc_rl),
+            "nl_hi": PLANET_NAMES_HI.get(asc_nl, asc_nl),
+            "sl_hi": PLANET_NAMES_HI.get(asc_sl, asc_sl),
+            "ssl_hi": PLANET_NAMES_HI.get(asc_ssl, asc_ssl),
         },
         "moon_longitude": round(moon_lon, 5),
         "planets": planets,
@@ -829,6 +942,7 @@ def full_kundli_bundle(member: dict[str, Any], target_year: int | None = None) -
         "yogas": compute_shubh_ashubh_yogas(chart),
         "luck_meter": compute_luck_meter(chart),
         "personal_dayfal": compute_personal_dayfal(chart),
+        "weekly_forecast": compute_weekly_personal_forecast(chart),
     }
     return raw_bundle
 
@@ -2424,4 +2538,110 @@ def compute_category_dates(
         "varjit_dates": varjit_dates,
         "total_shubh": len(shubh_dates),
         "total_varjit": len(varjit_dates),
+    }
+
+
+def compute_weekly_personal_forecast(chart: dict[str, Any], start_date: str = None) -> dict[str, Any]:
+    """
+    Compute 7-Day Personal Transit Forecast with exact Severity Levels:
+    - सामान्य (Mild / Favorable): Benefic transits (Houses 1, 3, 5, 7, 9, 10, 11)
+    - मध्यम (Moderate): Houses 2, 6, 12
+    - गंभीर (Severe / High Alert): House 8 (Chandra Ashtama) or adverse nodal aspects
+    """
+    st = datetime.strptime(start_date, "%Y-%m-%d").date() if start_date else date.today()
+    natal_moon = next((p for p in chart.get("planets", []) if p["planet"] == "Moon"), None)
+    natal_sign_idx = int(natal_moon.get("lon", 0.0) // 30) if natal_moon else 0
+
+    rashi_names_en = ["Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo", "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"]
+    rashi_names_hi = ["मेष", "वृषभ", "मिथुन", "कर्क", "सिंह", "कन्या", "तुला", "वृश्चिक", "धनु", "मकर", "कुंभ", "मीन"]
+
+    daily_forecasts = []
+    severe_count = 0
+    favorable_count = 0
+
+    for i in range(7):
+        cur_dt = st + timedelta(days=i)
+        jd_noon = swe.julday(cur_dt.year, cur_dt.month, cur_dt.day, 12.0) - 5.5 / 24.0
+        res_m, _ = swe.calc_ut(jd_noon, swe.MOON, CALC_FLAGS)
+        m_lon = res_m[0] % 360.0
+        s_idx = int(m_lon // 30)
+        h_from_moon = ((s_idx - natal_sign_idx) % 12) + 1
+
+        is_today = (i == 0)
+        is_tomorrow = (i == 1)
+        day_tag = "आज (Today)" if is_today else "कल (Tomorrow)" if is_tomorrow else cur_dt.strftime("%A")
+
+        if h_from_moon == 8:
+            sev_code = "severe"
+            sev_en = "Severe Caution (Chandra Ashtama)"
+            sev_hi = "गंभीर सावधानी (चंद्र अष्टम)"
+            theme_hi = "मानसिक शांति बनाए रखें, नए जोखिम या विवाद से बचें"
+            theme_en = "Exercise strict caution, postpone high-stake deals"
+            remedy_hi = "शिवलिंग पर जल चढ़ाएं और वाहन संभलकर चलाएं।"
+            remedy_en = "Offer water on Shivling and avoid night-time travel."
+            color_hi = "दूधिया सफेद"
+            color_en = "Milky White"
+            num = 2
+            severe_count += 1
+        elif h_from_moon in (2, 6, 12):
+            sev_code = "moderate"
+            sev_en = "Moderate (Caution on Spending/Speech)"
+            sev_hi = "मध्यम (खर्च व वाणी पर नियंत्रण रखें)"
+            theme_hi = "वित्तीय बजट का ध्यान रखें और सहकर्मियों से मधुर व्यवहार करें"
+            theme_en = "Maintain budget discipline and avoid arguments"
+            remedy_hi = "गाय को ताजी रोटी खिलाएं।"
+            remedy_en = "Feed fresh bread to cows."
+            color_hi = "हल्का हरा"
+            color_en = "Light Green"
+            num = 5
+        else:
+            sev_code = "mild"
+            sev_en = "Favorable (Growth & Success)"
+            sev_hi = "सामान्य / शुभ (कार्य सिद्धि व प्रगति)"
+            theme_hi = "लंबित कार्यों को पूरा करें, नए संपर्क व सम्मान का योग"
+            theme_en = "Productive window for meetings and executing key initiatives"
+            remedy_hi = "सूर्य देव को जल दें और गुरुजनों का आशीर्वाद लें।"
+            remedy_en = "Offer morning prayer to Sun and seek blessings."
+            color_hi = "केसरिया / पीला"
+            color_en = "Saffron / Gold"
+            num = 9
+            favorable_count += 1
+
+        daily_forecasts.append({
+            "day_index": i,
+            "date": cur_dt.strftime("%Y-%m-%d"),
+            "weekday": cur_dt.strftime("%A"),
+            "day_tag": day_tag,
+            "transit_rashi_en": rashi_names_en[s_idx],
+            "transit_rashi_hi": rashi_names_hi[s_idx],
+            "house_from_moon": h_from_moon,
+            "severity": sev_code,
+            "severity_code": sev_code,
+            "severity_en": sev_en,
+            "severity_hi": sev_hi,
+            "theme_hi": theme_hi,
+            "theme_en": theme_en,
+            "remedy_hi": remedy_hi,
+            "remedy_en": remedy_en,
+            "lucky_color_hi": color_hi,
+            "lucky_color_en": color_en,
+            "lucky_number": num,
+        })
+
+    best_day = next((d["weekday"] for d in daily_forecasts if d["severity_code"] == "mild"), "Wednesday")
+    alert_day = next((d["weekday"] for d in daily_forecasts if d["severity_code"] == "severe"), None)
+
+    summary_hi = f"इस सप्ताह {favorable_count} दिन अत्यंत अनुकूल व प्रगतिदायक रहेंगे। " + \
+                 (f"विशेषतः {alert_day} को चंद्र अष्टम के कारण अतिरिक्त सावधानी रखें।" if alert_day else "सप्ताह सामान्यतः शांतिपूर्ण रहेगा।")
+    summary_en = f"This week offers {favorable_count} highly productive days. " + \
+                 (f"Exercise special vigilance on {alert_day} due to 8th house transit." if alert_day else "Overall harmonious weekly momentum.")
+
+    return {
+        "start_date": st.strftime("%Y-%m-%d"),
+        "end_date": (st + timedelta(days=6)).strftime("%Y-%m-%d"),
+        "weekly_summary_hi": summary_hi,
+        "weekly_summary_en": summary_en,
+        "best_day": best_day,
+        "alert_day": alert_day or "None",
+        "days": daily_forecasts,
     }

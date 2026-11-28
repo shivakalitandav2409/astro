@@ -26,6 +26,7 @@ import {
 import { apiFetch } from "../../api";
 import CitySearchInput from "../../components/CitySearchInput";
 import NorthIndianChart from "../../components/NorthIndianChart";
+import SouthIndianChart from "../../components/SouthIndianChart";
 import { useApp } from "../../context/AppContext";
 
 export default function KundliWorkbench() {
@@ -42,6 +43,9 @@ export default function KundliWorkbench() {
   const isHindi = lang === "हिं";
   const [bundle, setBundle] = useState(null);
   const [chartTab, setChartTab] = useState("lagan");
+  const [chartStyle, setChartStyle] = useState("north"); // north | south
+  const [planetTableView, setPlanetTableView] = useState("vedic"); // vedic | kp
+  const [showWeeklyModal, setShowWeeklyModal] = useState(false);
   const [selectedHouse, setSelectedHouse] = useState(1);
   const [targetYear, setTargetYear] = useState(new Date().getFullYear());
   const [activeModule, setActiveModule] = useState("houses");
@@ -411,11 +415,23 @@ export default function KundliWorkbench() {
                     <strong className="text-emerald-400">{bundle.personal_dayfal.lucky_number}</strong>
                   </span>
                 </div>
-                <span className="text-[10px] text-slate-400">
-                  {isHindi
-                    ? `वर्तमान गोचर: चंद्रमा ${bundle.personal_dayfal.transit_rashi_hi} राशि में (${bundle.personal_dayfal.house_from_moon}वां भाव)`
-                    : `Transit: Moon in ${bundle.personal_dayfal.transit_rashi_en} (${bundle.personal_dayfal.house_from_moon}th from natal)`}
-                </span>
+                <div className="flex items-center gap-3">
+                  <span className="text-[10px] text-slate-400">
+                    {isHindi
+                      ? `वर्तमान गोचर: चंद्रमा ${bundle.personal_dayfal.transit_rashi_hi} राशि में (${bundle.personal_dayfal.house_from_moon}वां भाव)`
+                      : `Transit: Moon in ${bundle.personal_dayfal.transit_rashi_en} (${bundle.personal_dayfal.house_from_moon}th from natal)`}
+                  </span>
+                  {bundle.weekly_forecast && (
+                    <button
+                      type="button"
+                      onClick={() => setShowWeeklyModal(true)}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/20 px-3 py-1 text-xs font-bold text-amber-300 hover:bg-amber-500/30 transition shadow-sm"
+                    >
+                      <Calendar className="h-3.5 w-3.5 text-amber-400" />
+                      <span>{isHindi ? "7-दिवसीय साप्ताहिक भविष्यवाणी" : "7-Day Weekly Forecast"}</span>
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -479,41 +495,90 @@ export default function KundliWorkbench() {
 
           <div className="grid gap-6 lg:grid-cols-12">
           <div className="lg:col-span-5 space-y-4">
-            <div className="flex flex-wrap gap-1.5 rounded-2xl border border-slate-800 bg-slate-950 p-1.5 text-xs">
-              {[
-                { id: "lagan", label: isHindi ? "लग्न" : "Lagan" },
-                { id: "gochar", label: isHindi ? "गोचर" : "Gochar Transit" },
-                { id: "vashist", label: isHindi ? "वशिष्ठ" : "Vashist" },
-                { id: "varshphal", label: isHindi ? `वर्षफल (${targetYear})` : `Varshphal (${targetYear})` },
-              ].map((t) => (
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap gap-1.5 rounded-2xl border border-slate-800 bg-slate-950 p-1.5 text-xs flex-1">
+                {[
+                  { id: "lagan", label: isHindi ? "लग्न" : "Lagan" },
+                  { id: "gochar", label: isHindi ? "गोचर" : "Gochar Transit" },
+                  { id: "vashist", label: isHindi ? "वशिष्ठ" : "Vashist" },
+                  { id: "varshphal", label: isHindi ? `वर्षफल (${targetYear})` : `Varshphal (${targetYear})` },
+                ].map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setChartTab(t.id)}
+                    className={`flex-1 rounded-xl px-2 py-2 font-semibold transition ${
+                      chartTab === t.id ? "bg-amber-500 text-slate-950" : "text-slate-300 hover:text-white"
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Chart Switcher: North vs South Indian */}
+              <div className="flex rounded-xl border border-slate-800 bg-slate-950 p-1 text-xs">
                 <button
-                  key={t.id}
                   type="button"
-                  onClick={() => setChartTab(t.id)}
-                  className={`flex-1 rounded-xl px-2 py-2 font-semibold transition ${
-                    chartTab === t.id ? "bg-amber-500 text-slate-950" : "text-slate-300 hover:text-white"
+                  onClick={() => setChartStyle("north")}
+                  className={`rounded-lg px-2.5 py-1.5 font-semibold transition ${
+                    chartStyle === "north"
+                      ? "bg-amber-500/20 text-amber-300 border border-amber-500/40"
+                      : "text-slate-400 hover:text-white"
                   }`}
+                  title={isHindi ? "उत्तर भारतीय कुंडली" : "North Indian Chart"}
                 >
-                  {t.label}
+                  {isHindi ? "उत्तर" : "North"}
                 </button>
-              ))}
+                <button
+                  type="button"
+                  onClick={() => setChartStyle("south")}
+                  className={`rounded-lg px-2.5 py-1.5 font-semibold transition ${
+                    chartStyle === "south"
+                      ? "bg-amber-500/20 text-amber-300 border border-amber-500/40"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                  title={isHindi ? "दक्षिण भारतीय कुंडली" : "South Indian Chart"}
+                >
+                  {isHindi ? "दक्षिण" : "South"}
+                </button>
+              </div>
             </div>
 
-            <NorthIndianChart
-              houses={housesToShow}
-              isHindi={isHindi}
-              title={
-                chartTab === "lagan"
-                  ? isHindi ? "लग्न कुंडली (D1 जन्म चक्र)" : "Lagan (D1 Birth Chart)"
-                  : chartTab === "gochar"
-                  ? isHindi ? "गोचर (वर्तमान ग्रह स्थिति)" : "Gochar (Current Planetary Transits)"
-                  : chartTab === "vashist"
-                  ? isHindi ? "लाल किताब वशिष्ठ निश्चित चक्र" : "Lal Kitab Vashist Fixed Chart"
-                  : isHindi ? `वार्षिक वर्षफल · आयु वर्ष ${bundle.varshphal.running_age}` : `Annual Varshphal · Running Age ${bundle.varshphal.running_age}`
-              }
-              selectedHouse={selectedHouse}
-              onSelectHouse={setSelectedHouse}
-            />
+            {chartStyle === "north" ? (
+              <NorthIndianChart
+                houses={housesToShow}
+                isHindi={isHindi}
+                title={
+                  chartTab === "lagan"
+                    ? isHindi ? "लग्न कुंडली (D1 जन्म चक्र)" : "Lagan (D1 Birth Chart)"
+                    : chartTab === "gochar"
+                    ? isHindi ? "गोचर (वर्तमान ग्रह स्थिति)" : "Gochar (Current Planetary Transits)"
+                    : chartTab === "vashist"
+                    ? isHindi ? "लाल किताब वशिष्ठ निश्चित चक्र" : "Lal Kitab Vashist Fixed Chart"
+                    : isHindi ? `वार्षिक वर्षफल · आयु वर्ष ${bundle.varshphal.running_age}` : `Annual Varshphal · Running Age ${bundle.varshphal.running_age}`
+                }
+                selectedHouse={selectedHouse}
+                onSelectHouse={setSelectedHouse}
+              />
+            ) : (
+              <SouthIndianChart
+                chart={chart}
+                houses={housesToShow}
+                isHindi={isHindi}
+                title={
+                  chartTab === "lagan"
+                    ? isHindi ? "दक्षिण भारतीय लग्न कुंडली (D1)" : "South Indian Lagan (D1 Birth Chart)"
+                    : chartTab === "gochar"
+                    ? isHindi ? "दक्षिण भारतीय गोचर चक्र" : "South Indian Gochar Transits"
+                    : chartTab === "vashist"
+                    ? isHindi ? "दक्षिण भारतीय वशिष्ठ चक्र" : "South Indian Vashist Fixed Chart"
+                    : isHindi ? `दक्षिण भारतीय वर्षफल · आयु वर्ष ${bundle.varshphal.running_age}` : `South Indian Varshphal · Running Age ${bundle.varshphal.running_age}`
+                }
+                selectedHouse={selectedHouse}
+                onSelectHouse={setSelectedHouse}
+              />
+            )}
 
             <div className="cosmic-card rounded-2xl p-4 text-xs space-y-2">
               <div className="font-bold text-amber-300">
@@ -548,89 +613,262 @@ export default function KundliWorkbench() {
 
           <div className="lg:col-span-7 space-y-6">
             <div className="cosmic-card rounded-2xl p-4 sm:p-5">
-              <h2 className="mb-3 text-sm font-bold text-amber-300">
-                {isHindi ? "शुद्ध निरयण ग्रह स्थिति (लाहिरी)" : "Exact Sidereal Planetary Placements (Lahiri)"}
-              </h2>
-
-              {/* Mobile Card View (No Horizontal Scrolling) */}
-              <div className="sm:hidden grid gap-2.5">
-                {chart.planets.map((p) => (
-                  <div key={p.planet} className="rounded-xl border border-slate-800 bg-slate-900/80 p-3 space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <div className="font-bold text-white text-sm flex items-center gap-1.5">
-                        <span>{isHindi ? p.planet_hi || p.planet : p.planet}</span>
-                        {p.retrograde && (
-                          <span className="rounded bg-rose-500/20 px-1 py-0.5 text-[9px] text-rose-300 font-bold">
-                            {isHindi ? "व" : "R"}
-                          </span>
-                        )}
-                      </div>
-                      <span className="rounded-lg bg-amber-500/20 px-2 py-0.5 text-xs font-bold text-amber-300">
-                        {isHindi ? `भाव ${p.house}` : `House ${p.house}`}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between text-xs text-slate-300">
-                      <span>{isHindi ? p.rashi_hi || p.rashi : p.rashi}</span>
-                      <span className="font-mono text-amber-200">{p.dms}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-[11px] text-slate-400 border-t border-slate-800/80 pt-1.5">
-                      <span>
-                        {p.nakshatra} ({isHindi ? "चरण" : "P"}{p.pada})
-                      </span>
-                      <span className={`font-semibold ${p.is_benefic ? "text-emerald-400" : "text-amber-400"}`}>
-                        {isHindi ? p.dignity_hi || p.dignity : p.dignity}
-                      </span>
-                    </div>
-                  </div>
-                ))}
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-sm font-bold text-amber-300">
+                  {planetTableView === "vedic"
+                    ? isHindi ? "शुद्ध निरयण ग्रह स्थिति (लाहिरी)" : "Exact Sidereal Planetary Placements (Lahiri)"
+                    : isHindi ? "KP ग्रह विस्तार (RL-NL-SL-SSL) व जैमिनी कारक" : "KP Planetary Expansion (RL-NL-SL-SSL) & Karakas"}
+                </h2>
+                <div className="flex rounded-xl border border-slate-800 bg-slate-950 p-1 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setPlanetTableView("vedic")}
+                    className={`rounded-lg px-2.5 py-1 font-semibold transition ${
+                      planetTableView === "vedic"
+                        ? "bg-amber-500/20 text-amber-300 border border-amber-500/40"
+                        : "text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    {isHindi ? "वैदिक स्थिति" : "Vedic"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPlanetTableView("kp")}
+                    className={`rounded-lg px-2.5 py-1 font-semibold transition ${
+                      planetTableView === "kp"
+                        ? "bg-amber-500/20 text-amber-300 border border-amber-500/40"
+                        : "text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    {isHindi ? "KP व कारक" : "KP & Karakas"}
+                  </button>
+                </div>
               </div>
 
-              {/* Desktop Table View */}
-              <div className="hidden sm:block overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="border-b border-slate-800 text-slate-400">
-                    <tr>
-                      <th className="py-2 pr-3">{isHindi ? "ग्रह" : "Graha"}</th>
-                      <th className="py-2 pr-3">{isHindi ? "भाव" : "House"}</th>
-                      <th className="py-2 pr-3">{isHindi ? "राशि" : "Rashi (Sign)"}</th>
-                      <th className="py-2 pr-3">{isHindi ? "अंश" : "Deg"}</th>
-                      <th className="py-2 pr-3">{isHindi ? "नक्षत्र" : "Nakshatra"}</th>
-                      <th className="py-2 pr-3">{isHindi ? "नवांश" : "Navamsa"}</th>
-                      <th className="py-2">{isHindi ? "अवस्था" : "Dignity"}</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800/70">
+              {planetTableView === "vedic" ? (
+                <>
+                  {/* Mobile Card View (No Horizontal Scrolling) */}
+                  <div className="sm:hidden grid gap-2.5">
                     {chart.planets.map((p) => (
-                      <tr key={p.planet} className="hover:bg-slate-900/50">
-                        <td className="py-2 pr-3 font-semibold text-white">
-                          {isHindi ? p.planet_hi || p.planet : p.planet}{" "}
-                          {p.retrograde ? <span className="text-rose-400">({isHindi ? "व" : "R"})</span> : ""}
-                        </td>
-                        <td className="py-2 pr-3 text-amber-300">{isHindi ? `भाव ${p.house}` : `H${p.house}`}</td>
-                        <td className="py-2 pr-3">{isHindi ? p.rashi_hi || p.rashi : p.rashi}</td>
-                        <td className="py-2 pr-3 font-mono">{p.dms}</td>
-                        <td className="py-2 pr-3">
-                          {p.nakshatra} {isHindi ? "चरण" : "P"}{p.pada}
-                        </td>
-                        <td className="py-2 pr-3 text-slate-300">
-                          {isHindi
-                            ? (p.navamsa_rashi_hi || p.navamsa_rashi).split(" ")[0]
-                            : p.navamsa_rashi.split(" ")[0]}
-                        </td>
-                        <td className="py-2">
-                          <span
-                            className={`rounded px-1.5 py-0.5 text-[10px] ${
-                              p.is_benefic ? "bg-emerald-500/15 text-emerald-300" : "bg-rose-500/15 text-rose-300"
-                            }`}
-                          >
+                      <div key={p.planet} className="rounded-xl border border-slate-800 bg-slate-900/80 p-3 space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <div className="font-bold text-white text-sm flex items-center gap-1.5">
+                            <span>{isHindi ? p.planet_hi || p.planet : p.planet}</span>
+                            {p.retrograde && (
+                              <span className="rounded bg-rose-500/20 px-1 py-0.5 text-[9px] text-rose-300 font-bold">
+                                {isHindi ? "व" : "R"}
+                              </span>
+                            )}
+                          </div>
+                          <span className="rounded-lg bg-amber-500/20 px-2 py-0.5 text-xs font-bold text-amber-300">
+                            {isHindi ? `भाव ${p.house}` : `House ${p.house}`}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs text-slate-300">
+                          <span>{isHindi ? p.rashi_hi || p.rashi : p.rashi}</span>
+                          <span className="font-mono text-amber-200">{p.dms}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-[11px] text-slate-400 border-t border-slate-800/80 pt-1.5">
+                          <span>
+                            {p.nakshatra} ({isHindi ? "चरण" : "P"}{p.pada})
+                          </span>
+                          <span className={`font-semibold ${p.is_benefic ? "text-emerald-400" : "text-amber-400"}`}>
                             {isHindi ? p.dignity_hi || p.dignity : p.dignity}
                           </span>
-                        </td>
-                      </tr>
+                        </div>
+                      </div>
                     ))}
-                  </tbody>
-                </table>
-              </div>
+                  </div>
+
+                  {/* Desktop Table View */}
+                  <div className="hidden sm:block overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead className="border-b border-slate-800 text-slate-400">
+                        <tr>
+                          <th className="py-2 pr-3">{isHindi ? "ग्रह" : "Graha"}</th>
+                          <th className="py-2 pr-3">{isHindi ? "भाव" : "House"}</th>
+                          <th className="py-2 pr-3">{isHindi ? "राशि" : "Rashi (Sign)"}</th>
+                          <th className="py-2 pr-3">{isHindi ? "अंश" : "Deg"}</th>
+                          <th className="py-2 pr-3">{isHindi ? "नक्षत्र" : "Nakshatra"}</th>
+                          <th className="py-2 pr-3">{isHindi ? "नवांश" : "Navamsa"}</th>
+                          <th className="py-2">{isHindi ? "अवस्था" : "Dignity"}</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/70">
+                        {chart.planets.map((p) => (
+                          <tr key={p.planet} className="hover:bg-slate-900/50">
+                            <td className="py-2 pr-3 font-semibold text-white">
+                              {isHindi ? p.planet_hi || p.planet : p.planet}{" "}
+                              {p.retrograde ? <span className="text-rose-400">({isHindi ? "व" : "R"})</span> : ""}
+                            </td>
+                            <td className="py-2 pr-3 text-amber-300">{isHindi ? `भाव ${p.house}` : `H${p.house}`}</td>
+                            <td className="py-2 pr-3">{isHindi ? p.rashi_hi || p.rashi : p.rashi}</td>
+                            <td className="py-2 pr-3 font-mono">{p.dms}</td>
+                            <td className="py-2 pr-3">
+                              {p.nakshatra} {isHindi ? "चरण" : "P"}{p.pada}
+                            </td>
+                            <td className="py-2 pr-3 text-slate-300">
+                              {isHindi
+                                ? (p.navamsa_rashi_hi || p.navamsa_rashi).split(" ")[0]
+                                : p.navamsa_rashi.split(" ")[0]}
+                            </td>
+                            <td className="py-2">
+                              <span
+                                className={`rounded px-1.5 py-0.5 text-[10px] ${
+                                  p.is_benefic ? "bg-emerald-500/15 text-emerald-300" : "bg-rose-500/15 text-rose-300"
+                                }`}
+                              >
+                                {isHindi ? p.dignity_hi || p.dignity : p.dignity}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* KP Sub-Lords & Jaimini Karakas - Mobile Cards */}
+                  <div className="sm:hidden grid gap-2.5">
+                    {/* Ascendant KP row */}
+                    {chart.ascendant && (
+                      <div className="rounded-xl border border-indigo-500/30 bg-indigo-950/20 p-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-indigo-300 text-sm">
+                            {isHindi ? "लग्न (Lagna Ascendant)" : "Ascendant (Lagna)"}
+                          </span>
+                          <span className="rounded-lg bg-indigo-500/20 px-2 py-0.5 text-xs font-bold text-indigo-200">
+                            {chart.ascendant.dms}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-4 gap-1 text-[10px] text-center">
+                          <div className="rounded bg-slate-900 p-1 border border-slate-800">
+                            <span className="text-slate-400 block">RL</span>
+                            <span className="font-bold text-amber-300">{isHindi ? chart.ascendant.rl_hi || chart.ascendant.rl : chart.ascendant.rl}</span>
+                          </div>
+                          <div className="rounded bg-slate-900 p-1 border border-slate-800">
+                            <span className="text-slate-400 block">NL</span>
+                            <span className="font-bold text-amber-300">{isHindi ? chart.ascendant.nl_hi || chart.ascendant.nl : chart.ascendant.nl}</span>
+                          </div>
+                          <div className="rounded bg-slate-900 p-1 border border-slate-800">
+                            <span className="text-slate-400 block">SL</span>
+                            <span className="font-bold text-emerald-300">{isHindi ? chart.ascendant.sl_hi || chart.ascendant.sl : chart.ascendant.sl}</span>
+                          </div>
+                          <div className="rounded bg-slate-900 p-1 border border-slate-800">
+                            <span className="text-slate-400 block">SSL</span>
+                            <span className="font-bold text-emerald-300">{isHindi ? chart.ascendant.ssl_hi || chart.ascendant.ssl : chart.ascendant.ssl}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    {chart.planets.map((p) => (
+                      <div key={p.planet} className="rounded-xl border border-slate-800 bg-slate-900/80 p-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="font-bold text-white text-sm flex items-center gap-1.5">
+                            <span>{isHindi ? p.planet_hi || p.planet : p.planet}</span>
+                            {p.retrograde && (
+                              <span className="rounded bg-rose-500/20 px-1 py-0.5 text-[9px] text-rose-300 font-bold">
+                                {isHindi ? "व" : "R"}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            {p.karaka_code && (
+                              <span className="rounded-lg bg-indigo-500/20 border border-indigo-500/30 px-2 py-0.5 text-[10px] font-bold text-indigo-300">
+                                {p.karaka_code} · {isHindi ? p.karaka_hi : p.karaka_en}
+                              </span>
+                            )}
+                            <span className="rounded-lg bg-amber-500/20 px-1.5 py-0.5 text-xs font-bold text-amber-300">
+                              {isHindi ? `भाव ${p.house}` : `H${p.house}`}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between text-xs text-slate-300">
+                          <span>{isHindi ? p.rashi_hi || p.rashi : p.rashi}</span>
+                          <span className="font-mono text-amber-200">{p.dms}</span>
+                        </div>
+                        <div className="grid grid-cols-4 gap-1 text-[10px] text-center border-t border-slate-800/80 pt-2">
+                          <div className="rounded bg-slate-950 p-1 border border-slate-800/60">
+                            <span className="text-slate-400 block">RL (राशि)</span>
+                            <span className="font-bold text-amber-300">{isHindi ? p.rl_hi || p.rl : p.rl}</span>
+                          </div>
+                          <div className="rounded bg-slate-950 p-1 border border-slate-800/60">
+                            <span className="text-slate-400 block">NL (नक्षत्र)</span>
+                            <span className="font-bold text-amber-300">{isHindi ? p.nl_hi || p.nl : p.nl}</span>
+                          </div>
+                          <div className="rounded bg-slate-950 p-1 border border-slate-800/60">
+                            <span className="text-slate-400 block">SL (उप)</span>
+                            <span className="font-bold text-emerald-300">{isHindi ? p.sl_hi || p.sl : p.sl}</span>
+                          </div>
+                          <div className="rounded bg-slate-950 p-1 border border-slate-800/60">
+                            <span className="text-slate-400 block">SSL (उप-उप)</span>
+                            <span className="font-bold text-emerald-300">{isHindi ? p.ssl_hi || p.ssl : p.ssl}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* KP Sub-Lords & Jaimini Karakas - Desktop Table */}
+                  <div className="hidden sm:block overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead className="border-b border-slate-800 text-slate-400">
+                        <tr>
+                          <th className="py-2 pr-2">{isHindi ? "ग्रह" : "Graha"}</th>
+                          <th className="py-2 pr-2">{isHindi ? "भाव" : "H"}</th>
+                          <th className="py-2 pr-2">{isHindi ? "अंश (DMS)" : "Deg"}</th>
+                          <th className="py-2 pr-2 text-amber-300">{isHindi ? "RL (राशि)" : "RL"}</th>
+                          <th className="py-2 pr-2 text-amber-300">{isHindi ? "NL (नक्षत्र)" : "NL"}</th>
+                          <th className="py-2 pr-2 text-emerald-300">{isHindi ? "SL (उप-स्वामी)" : "SL"}</th>
+                          <th className="py-2 pr-2 text-emerald-300">{isHindi ? "SSL (उप-उप)" : "SSL"}</th>
+                          <th className="py-2">{isHindi ? "जैमिनी कारक (Karaka)" : "Jaimini Karaka"}</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/70">
+                        {/* Ascendant Row */}
+                        {chart.ascendant && (
+                          <tr className="bg-indigo-950/20 font-medium">
+                            <td className="py-2 pr-2 font-bold text-indigo-300">
+                              {isHindi ? "लग्न (Ascendant)" : "Ascendant"}
+                            </td>
+                            <td className="py-2 pr-2 text-slate-400">1</td>
+                            <td className="py-2 pr-2 font-mono text-indigo-200">{chart.ascendant.dms}</td>
+                            <td className="py-2 pr-2 text-amber-200">{isHindi ? chart.ascendant.rl_hi || chart.ascendant.rl : chart.ascendant.rl}</td>
+                            <td className="py-2 pr-2 text-amber-200">{isHindi ? chart.ascendant.nl_hi || chart.ascendant.nl : chart.ascendant.nl}</td>
+                            <td className="py-2 pr-2 font-bold text-emerald-400">{isHindi ? chart.ascendant.sl_hi || chart.ascendant.sl : chart.ascendant.sl}</td>
+                            <td className="py-2 pr-2 font-bold text-emerald-400">{isHindi ? chart.ascendant.ssl_hi || chart.ascendant.ssl : chart.ascendant.ssl}</td>
+                            <td className="py-2 text-slate-500">—</td>
+                          </tr>
+                        )}
+                        {chart.planets.map((p) => (
+                          <tr key={p.planet} className="hover:bg-slate-900/50">
+                            <td className="py-2 pr-2 font-semibold text-white">
+                              {isHindi ? p.planet_hi || p.planet : p.planet}{" "}
+                              {p.retrograde ? <span className="text-rose-400">({isHindi ? "व" : "R"})</span> : ""}
+                            </td>
+                            <td className="py-2 pr-2 text-amber-300">{p.house}</td>
+                            <td className="py-2 pr-2 font-mono text-slate-300">{p.dms}</td>
+                            <td className="py-2 pr-2 text-amber-200">{isHindi ? p.rl_hi || p.rl : p.rl}</td>
+                            <td className="py-2 pr-2 text-amber-200">{isHindi ? p.nl_hi || p.nl : p.nl}</td>
+                            <td className="py-2 pr-2 font-bold text-emerald-400">{isHindi ? p.sl_hi || p.sl : p.sl}</td>
+                            <td className="py-2 pr-2 font-bold text-emerald-400">{isHindi ? p.ssl_hi || p.ssl : p.ssl}</td>
+                            <td className="py-2">
+                              {p.karaka_code ? (
+                                <span className="rounded bg-indigo-500/20 border border-indigo-500/30 px-2 py-0.5 text-[10px] font-bold text-indigo-300">
+                                  {p.karaka_code} · {isHindi ? p.karaka_hi : p.karaka_en}
+                                </span>
+                              ) : (
+                                <span className="text-slate-500 text-[10px]">—</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
             </div>
 
             <div className="cosmic-card rounded-2xl p-5">
@@ -1472,6 +1710,136 @@ export default function KundliWorkbench() {
                 className="rounded-xl px-5 py-2 text-xs font-semibold text-slate-400 hover:text-white"
               >
                 Cancel / रद्द करें
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 7-Day Personal Weekly Forecast Modal with Severity Levels */}
+      {showWeeklyModal && bundle.weekly_forecast && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-3 sm:p-4 backdrop-blur-md animate-fade-up overflow-y-auto">
+          <div className="cosmic-card w-full max-w-3xl rounded-3xl p-5 sm:p-6 space-y-4 border border-amber-500/40 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500/15 text-amber-400">
+                  <Calendar className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">
+                    {isHindi ? "7-दिवसीय व्यक्तिगत गोचर एवं गंभीरता स्तर" : "7-Day Personal Transit & Severity Timeline"}
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    {bundle.weekly_forecast.start_date} → {bundle.weekly_forecast.end_date} · {isHindi ? "चंद्र गोचर आधारित व्यक्तिगत विश्लेषण" : "Daily lunar transit correlation"}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowWeeklyModal(false)}
+                className="rounded-xl border border-slate-700 bg-slate-900 p-1.5 text-slate-400 hover:text-white transition"
+              >
+                <XCircle className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Weekly Summary & Key Highlights */}
+            <div className="rounded-2xl border border-amber-500/30 bg-amber-950/20 p-4 space-y-2.5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-amber-300">
+                  {isHindi ? "साप्ताहिक सारांश (Executive Summary)" : "Weekly Executive Summary"}
+                </span>
+                <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                  <span className="rounded-full bg-emerald-500/20 border border-emerald-500/30 px-2.5 py-0.5 font-bold text-emerald-300">
+                    {isHindi ? "सर्वश्रेष्ठ दिन: " : "Best Day: "}{bundle.weekly_forecast.best_day}
+                  </span>
+                  {bundle.weekly_forecast.alert_day && bundle.weekly_forecast.alert_day !== "None" && (
+                    <span className="rounded-full bg-rose-500/20 border border-rose-500/30 px-2.5 py-0.5 font-bold text-rose-300">
+                      {isHindi ? "सावधानी दिन: " : "Caution Day: "}{bundle.weekly_forecast.alert_day}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <p className="text-xs text-slate-200 leading-relaxed">
+                {isHindi ? bundle.weekly_forecast.weekly_summary_hi : bundle.weekly_forecast.weekly_summary_en}
+              </p>
+            </div>
+
+            {/* 7 Daily Cards */}
+            <div className="space-y-3">
+              {bundle.weekly_forecast.days.map((day) => {
+                const isSevere = day.severity === "severe" || day.severity_code === "severe";
+                const isModerate = day.severity === "moderate" || day.severity_code === "moderate";
+                return (
+                  <div
+                    key={day.day_index}
+                    className={`rounded-2xl border p-3.5 text-xs space-y-2 transition ${
+                      isSevere
+                        ? "border-rose-500/40 bg-rose-950/20 shadow-md"
+                        : isModerate
+                        ? "border-amber-500/40 bg-amber-950/15"
+                        : "border-slate-800 bg-slate-900/70"
+                    }`}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-white text-sm">
+                          {day.date} ({isHindi ? day.day_tag : day.weekday})
+                        </span>
+                        <span className="text-[11px] text-slate-400">
+                          {isHindi
+                            ? `चंद्रमा: ${day.transit_rashi_hi} (${day.house_from_moon}वां भाव)`
+                            : `Moon in ${day.transit_rashi_en} (${day.house_from_moon}th)`}
+                        </span>
+                      </div>
+                      <span
+                        className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                          isSevere
+                            ? "bg-rose-500/20 text-rose-300 border border-rose-500/40"
+                            : isModerate
+                            ? "bg-amber-500/20 text-amber-300 border border-amber-500/40"
+                            : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                        }`}
+                      >
+                        {isHindi ? day.severity_hi : day.severity_en}
+                      </span>
+                    </div>
+
+                    <p className="text-slate-200 leading-relaxed">
+                      {isHindi ? day.theme_hi : day.theme_en}
+                    </p>
+
+                    <div className="grid gap-2 sm:grid-cols-2 pt-1 border-t border-slate-800/60 text-[11px]">
+                      <div className="rounded-xl bg-slate-950/60 p-2 text-amber-200/90 flex items-start gap-1.5">
+                        <Sparkles className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
+                        <div>
+                          <strong>{isHindi ? "दैनिक उपाय: " : "Daily Remedy: "}</strong>
+                          <span>{isHindi ? day.remedy_hi : day.remedy_en}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between rounded-xl bg-slate-950/60 px-3 py-2 text-slate-300">
+                        <span>
+                          {isHindi ? "शुभ रंग: " : "Lucky Color: "}
+                          <strong className="text-amber-300">{isHindi ? day.lucky_color_hi : day.lucky_color_en}</strong>
+                        </span>
+                        <span>
+                          {isHindi ? "शुभ अंक: " : "Lucky Number: "}
+                          <strong className="text-emerald-400 font-bold">{day.lucky_number}</strong>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex justify-end pt-2 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => setShowWeeklyModal(false)}
+                className="gold-btn rounded-xl px-5 py-2 text-xs font-bold"
+              >
+                {isHindi ? "बंद करें" : "Close"}
               </button>
             </div>
           </div>

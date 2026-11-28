@@ -48,9 +48,8 @@ export function AppProvider({ children }) {
       const me = await apiFetch("/auth/me");
       setAccount(me.account);
       setEnrolledCourses(me.enrolled_course_ids || []);
-      const [mRes, cRes, nRes] = await Promise.all([
+      const [mRes, nRes] = await Promise.all([
         apiFetch("/members"),
-        apiFetch("/cart"),
         apiFetch("/notifications"),
       ]);
       setMembers(mRes.members || []);
@@ -58,7 +57,6 @@ export function AppProvider({ children }) {
         if (prev && (mRes.members || []).some((m) => m.id === prev)) return prev;
         return mRes.members?.[0]?.id || null;
       });
-      setCartCount((cRes.items || []).reduce((acc, it) => acc + it.quantity, 0));
       setUnreadNotifs((nRes.notifications || []).filter((n) => !n.is_read).length);
     } catch {
       setStoredToken("");

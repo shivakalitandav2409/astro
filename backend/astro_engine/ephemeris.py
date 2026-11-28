@@ -253,6 +253,19 @@ def resolve_historical_tz(
     return float(tz_offset), f"UTC{'+' if tz_offset >= 0 else ''}{tz_offset}"
 
 
+def _clean_dob(dob: str) -> str:
+    """Normalize date string into standard YYYY-MM-DD."""
+    if not dob:
+        return "1990-01-01"
+    raw = str(dob).strip().replace("/", "-")
+    parts = raw.split("-")
+    if len(parts) == 3 and len(parts[0]) <= 2 and len(parts[2]) == 4:
+        return f"{parts[2]}-{parts[1].zfill(2)}-{parts[0].zfill(2)}"
+    elif len(parts) == 3 and len(parts[0]) == 4:
+        return f"{parts[0]}-{parts[1].zfill(2)}-{parts[2].zfill(2)}"
+    return raw
+
+
 def to_jd_ut(
     dob: str,
     birth_time: str,
@@ -261,9 +274,10 @@ def to_jd_ut(
     iana_tz: str | None = None,
 ) -> tuple[float, float, str]:
     t_str = birth_time.strip()
+    clean_dob = _clean_dob(dob)
     fmt = "%Y-%m-%d %H:%M:%S" if len(t_str.split(":")) == 3 else "%Y-%m-%d %H:%M"
-    naive_dt = datetime.strptime(f"{dob.strip()} {t_str}", fmt)
-    eff_offset, tz_name = resolve_historical_tz(dob, birth_time, tz_offset, place_name, iana_tz)
+    naive_dt = datetime.strptime(f"{clean_dob} {t_str}", fmt)
+    eff_offset, tz_name = resolve_historical_tz(clean_dob, birth_time, tz_offset, place_name, iana_tz)
     ut_dt = naive_dt - timedelta(hours=eff_offset)
     hour_dec = ut_dt.hour + ut_dt.minute / 60.0 + ut_dt.second / 3600.0
     jd = swe.julday(ut_dt.year, ut_dt.month, ut_dt.day, hour_dec)
@@ -533,7 +547,8 @@ def compute_chart(
 
 def compute_varshphal_chart(chart: dict[str, Any], dob: str, target_year: int | None = None) -> dict[str, Any]:
     """Compute annual Lal Kitab / Solar Varshphal house rotation for a given year."""
-    b_year = int(dob.split("-")[0])
+    c_dob = _clean_dob(dob)
+    b_year = int(c_dob.split("-")[0])
     yr = target_year or date.today().year
     age = max(1, (yr - b_year) + 1)
     shift = (age - 1) % 12
@@ -556,7 +571,7 @@ def compute_varshphal_chart(chart: dict[str, Any], dob: str, target_year: int | 
 def compute_vimshottari_dashas(dob: str, moon_lon: float, today_dt: date | None = None) -> dict[str, Any]:
     """Compute 120-year Vimshottari Mahadasha, Antardasha & Lal Kitab cycles from Moon longitude."""
     today = today_dt or date.today()
-    birth_date = datetime.strptime(dob, "%Y-%m-%d").date()
+    birth_date = datetime.strptime(_clean_dob(dob), "%Y-%m-%d").date()
     nak_span = 360.0 / 27.0
     nak_idx = int(moon_lon // nak_span) % 27
     frac_elapsed = (moon_lon % nak_span) / nak_span
@@ -901,20 +916,30 @@ def _vivaran_desk(chart: dict[str, Any]) -> list[dict[str, Any]]:
 
 def full_kundli_bundle(member: dict[str, Any], target_year: int | None = None) -> dict[str, Any]:
     """Build complete Kundli data bundle for a member profile."""
+    dob_val = _clean_dob(member.get("dob", "1990-01-01"))
+    tob_val = member.get("birth_time") or member.get("tob", "12:00")
+    lat_val = float(member.get("latitude") if member.get("latitude") is not None else member.get("lat", 28.6139))
+    lon_val = float(member.get("longitude") if member.get("longitude") is not None else member.get("lon", 77.2090))
+    tz_val = float(member.get("tz_offset") if member.get("tz_offset") is not None else member.get("tz", 5.5))
+    pname_val = member.get("place_name") or member.get("place", "New Delhi")
+
     chart = compute_chart(
-        member["dob"],
-        member["birth_time"],
-        float(member["latitude"]),
-        float(member["longitude"]),
-        float(member.get("tz_offset", 5.5)),
-        place_name=member.get("place_name", ""),
+        dob_val,
+        tob_val,
+        lat_val,
+        lon_val,
+        tz_val,
+        place_name=pname_val,
     )
-    varshphal = compute_varshphal_chart(chart, member["dob"], target_year=target_year)
-    dashas = compute_vimshottari_dashas(member["dob"], chart["moon_longitude"])
+    varshphal = compute_varshphal_chart(chart, dob_val, target_year=target_year)
+    dashas = compute_vimshottari_dashas(dob_val, chart["moon_longitude"])
     houses_pred = _house_predictions(chart)
     vivaran = _vivaran_desk(chart)
     age_ranges = []
-    b_yr = int(member["dob"].split("-")[0])
+    try:
+        b_yr = int(dob_val.replace("/", "-").split("-")[0])
+    except Exception:
+        b_yr = 1990
     cur_yr = date.today().year
     for age in range(1, 76, 5):
         sy = b_yr + age - 1
@@ -926,11 +951,12 @@ def full_kundli_bundle(member: dict[str, Any], target_year: int | None = None) -
             "is_current": sy <= cur_yr <= ey,
             "summary": f"Varshphal cycle for ages {age} to {age + 4}: focus on House {((age - 1) % 12) + 1} themes.",
         })
+    kp_chart_data = compute_kp_cusp_chart(chart, dob_val, tob_val, lat_val, lon_val, tz_val)
     raw_bundle = {
         "member": member,
         "chart": chart,
         "varshphal": varshphal,
-        "dashas": compute_bifurcated_dasha_predictions(dashas, member["dob"]),
+        "dashas": compute_bifurcated_dasha_predictions(dashas, dob_val),
         "ghar_predictions": houses_pred,
         "vivaran": vivaran,
         "age_ranges": age_ranges,
@@ -938,13 +964,13 @@ def full_kundli_bundle(member: dict[str, Any], target_year: int | None = None) -
         "dormancy": compute_dormant_houses_and_planets(chart),
         "parhez": compute_varshphal_parhez(varshphal, cur_yr - b_yr + 1),
         "clashes": compute_planetary_clashes(chart),
-        "life_events": compute_life_events_timeline(chart, member["dob"], dashas),
+        "life_events": compute_life_events_timeline(chart, dob_val, dashas),
         "yogas": compute_shubh_ashubh_yogas(chart),
         "luck_meter": compute_luck_meter(chart),
         "personal_dayfal": compute_personal_dayfal(chart),
         "weekly_forecast": compute_weekly_personal_forecast(chart),
-        "kp_cusps": compute_kp_cusp_chart(chart, member["dob"], member["birth_time"], float(member["latitude"]), float(member["longitude"]), float(member.get("tz_offset", 5.5))),
-        "kp_cusp_chart": compute_kp_cusp_chart(chart, member["dob"], member["birth_time"], float(member["latitude"]), float(member["longitude"]), float(member.get("tz_offset", 5.5))),
+        "kp_cusps": kp_chart_data,
+        "kp_cusp_chart": kp_chart_data,
         "visual_upay_chart": compute_lal_kitab_visual_upay_chart(chart),
     }
     return raw_bundle
@@ -955,8 +981,20 @@ def compute_matchmaking(
     girl: dict[str, Any],
 ) -> dict[str, Any]:
     """Compute exact 36-point Ashtakoot Guna Milan + Manglik check using Swiss Ephemeris."""
-    bc = compute_chart(boy["dob"], boy["birth_time"], float(boy["latitude"]), float(boy["longitude"]), float(boy.get("tz_offset", 5.5)))
-    gc = compute_chart(girl["dob"], girl["birth_time"], float(girl["latitude"]), float(girl["longitude"]), float(girl.get("tz_offset", 5.5)))
+    b_dob = boy.get("dob", "1995-01-01")
+    b_tob = boy.get("birth_time") or boy.get("tob", "12:00")
+    b_lat = float(boy.get("latitude") if boy.get("latitude") is not None else boy.get("lat", 28.6139))
+    b_lon = float(boy.get("longitude") if boy.get("longitude") is not None else boy.get("lon", 77.2090))
+    b_tz = float(boy.get("tz_offset") if boy.get("tz_offset") is not None else boy.get("tz", 5.5))
+
+    g_dob = girl.get("dob", "1997-01-01")
+    g_tob = girl.get("birth_time") or girl.get("tob", "12:00")
+    g_lat = float(girl.get("latitude") if girl.get("latitude") is not None else girl.get("lat", 28.6139))
+    g_lon = float(girl.get("longitude") if girl.get("longitude") is not None else girl.get("lon", 77.2090))
+    g_tz = float(girl.get("tz_offset") if girl.get("tz_offset") is not None else girl.get("tz", 5.5))
+
+    bc = compute_chart(b_dob, b_tob, b_lat, b_lon, b_tz)
+    gc = compute_chart(g_dob, g_tob, g_lat, g_lon, g_tz)
 
     b_moon = next(p for p in bc["planets"] if p["planet"] == "Moon")
     g_moon = next(p for p in gc["planets"] if p["planet"] == "Moon")
@@ -1031,10 +1069,13 @@ def compute_matchmaking(
     manglik_summary_hi = "दोनों मांगलिक (दोष शांत व संतुलित)" if (b_manglik and g_manglik) else ("आंशिक मांगलिक — परामर्श आवश्यक" if (b_manglik != g_manglik) else "मांगलिक दोष रहित")
 
     return {
-        "boy": {"name": boy["name"], "moon_rashi": b_moon["rashi"], "moon_rashi_hi": b_moon.get("rashi_hi", b_moon["rashi"]), "nakshatra": b_moon["nakshatra"], "manglik": b_manglik, "mars_house": b_mars["house"]},
-        "girl": {"name": girl["name"], "moon_rashi": g_moon["rashi"], "moon_rashi_hi": g_moon.get("rashi_hi", g_moon["rashi"]), "nakshatra": g_moon["nakshatra"], "manglik": g_manglik, "mars_house": g_mars["house"]},
+        "boy": {"name": boy.get("name", "Boy"), "moon_rashi": b_moon["rashi"], "moon_rashi_hi": b_moon.get("rashi_hi", b_moon["rashi"]), "nakshatra": b_moon["nakshatra"], "manglik": b_manglik, "mars_house": b_mars["house"]},
+        "girl": {"name": girl.get("name", "Girl"), "moon_rashi": g_moon["rashi"], "moon_rashi_hi": g_moon.get("rashi_hi", g_moon["rashi"]), "nakshatra": g_moon["nakshatra"], "manglik": g_manglik, "mars_house": g_mars["house"]},
         "total_points": total,
         "max_points": 36.0,
+        "total_score": total,
+        "max_score": 36.0,
+        "score": total,
         "verdict": verdict,
         "verdict_hi": verdict_hi,
         "manglik_summary": manglik_summary,
@@ -1156,6 +1197,7 @@ def compute_panchang(target_date: str, latitude: float, longitude: float, tz_off
         "rahu_kaal": rahu_kaal,
         "day_choghadiya": day_slots,
         "night_choghadiya": night_slots,
+        "choghadiya": {"day": day_slots, "night": night_slots},
     }
 
 
@@ -1768,6 +1810,7 @@ def compute_daily_horoscope_and_totka(target_date: str | None = None) -> dict[st
         "todays_totka_en": totka[0],
         "todays_totka_hi": totka[1],
         "zodiac_predictions": rashi_predictions,
+        "horoscope": rashi_predictions,
     }
 
 
@@ -2444,9 +2487,16 @@ def compute_category_dates(
     - Tithi (avoiding Rikta: 4, 9, 14, Amavasya 30; honoring Shukla/Krishna Paksha)
     - Weekday & Nakshatra alignments for specific activity
     """
-    st = datetime.strptime(start_date, "%Y-%m-%d").date() if start_date else date.today()
+    st = datetime.strptime(_clean_dob(start_date), "%Y-%m-%d").date() if start_date else date.today()
     natal_moon = next((p for p in chart.get("planets", []) if p["planet"] == "Moon"), None)
-    natal_sign_idx = int(natal_moon.get("lon", 0.0) // 30) if natal_moon else 0
+    if natal_moon:
+        natal_sign_idx = (
+            natal_moon["sign_index"] - 1
+            if "sign_index" in natal_moon
+            else int(natal_moon.get("longitude", natal_moon.get("lon", 0.0)) // 30)
+        )
+    else:
+        natal_sign_idx = 0
 
     category_titles = {
         "marriage": {"hi": "विवाह व सगाई संस्कार", "en": "Marriage & Betrothal"},
@@ -2681,6 +2731,7 @@ def compute_category_dates(
         "shubh_dates": shubh_dates,
         "moderate_dates": moderate_dates,
         "varjit_dates": varjit_dates,
+        "dates": sorted(shubh_dates + moderate_dates + varjit_dates, key=lambda x: x["date"]),
         "total_shubh": len(shubh_dates),
         "total_moderate": len(moderate_dates),
         "total_varjit": len(varjit_dates),
@@ -2695,9 +2746,16 @@ def compute_weekly_personal_forecast(chart: dict[str, Any], start_date: str = No
     - मध्यम (Moderate): Houses 2, 6, 12
     - गंभीर (Severe / High Alert): House 8 (Chandra Ashtama) or adverse nodal aspects
     """
-    st = datetime.strptime(start_date, "%Y-%m-%d").date() if start_date else date.today()
+    st = datetime.strptime(_clean_dob(start_date), "%Y-%m-%d").date() if start_date else date.today()
     natal_moon = next((p for p in chart.get("planets", []) if p["planet"] == "Moon"), None)
-    natal_sign_idx = int(natal_moon.get("lon", 0.0) // 30) if natal_moon else 0
+    if natal_moon:
+        natal_sign_idx = (
+            natal_moon["sign_index"] - 1
+            if "sign_index" in natal_moon
+            else int(natal_moon.get("longitude", natal_moon.get("lon", 0.0)) // 30)
+        )
+    else:
+        natal_sign_idx = 0
 
     rashi_names_en = ["Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo", "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"]
     rashi_names_hi = ["मेष", "वृषभ", "मिथुन", "कर्क", "सिंह", "कन्या", "तुला", "वृश्चिक", "धनु", "मकर", "कुंभ", "मीन"]

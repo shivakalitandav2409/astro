@@ -123,17 +123,24 @@ def generate_kundli_pdf(bundle: dict[str, Any], lang: str = "en") -> bytes:
     fn = pdf.font_family_name
 
     # Title Banner
+    m_name = member.get("name", "User")
+    m_dob = member.get("dob", "1990-01-01")
+    m_tob = member.get("birth_time") or member.get("tob", "12:00")
+    m_place = member.get("place_name") or member.get("place", "New Delhi")
+    m_lat = float(member.get("latitude") if member.get("latitude") is not None else member.get("lat", 0.0))
+    m_lon = float(member.get("longitude") if member.get("longitude") is not None else member.get("lon", 0.0))
+
     pdf.set_font(fn, "B", 16)
     pdf.set_text_color(245, 158, 11)
-    main_title = f"जन्म पत्रिका एवं संपूर्ण जीवन योजना — {member['name']}" if is_hindi else f"Birth Horoscope & Complete Life Plan — {member['name']}"
+    main_title = f"जन्म पत्रिका एवं संपूर्ण जीवन योजना — {m_name}" if is_hindi else f"Birth Horoscope & Complete Life Plan — {m_name}"
     pdf.cell(pdf.epw, 9, main_title, align="C", new_x="LMARGIN", new_y="NEXT")
 
     pdf.set_font(fn, "", 9.5)
     pdf.set_text_color(51, 65, 85)
     if is_hindi:
         meta_line1 = (
-            f"जन्म तिथि: {member['dob']} | समय: {member['birth_time']} | "
-            f"स्थान: {member.get('place_name', 'New Delhi')} ({float(member.get('latitude', 0)):.2f}°N, {float(member.get('longitude', 0)):.2f}°E)"
+            f"जन्म तिथि: {m_dob} | समय: {m_tob} | "
+            f"स्थान: {m_place} ({m_lat:.2f}°N, {m_lon:.2f}°E)"
         )
         meta_line2 = (
             f"लग्न राशि: {chart['ascendant']['rashi']} ({chart['ascendant']['dms']}) | "
@@ -141,8 +148,8 @@ def generate_kundli_pdf(bundle: dict[str, Any], lang: str = "en") -> bytes:
         )
     else:
         meta_line1 = (
-            f"Date of Birth: {member['dob']} | Time: {member['birth_time']} | "
-            f"Place: {member.get('place_name', 'New Delhi')} ({float(member.get('latitude', 0)):.2f}°N, {float(member.get('longitude', 0)):.2f}°E)"
+            f"Date of Birth: {m_dob} | Time: {m_tob} | "
+            f"Place: {m_place} ({m_lat:.2f}°N, {m_lon:.2f}°E)"
         )
         meta_line2 = (
             f"Ascendant (Lagna): {chart['ascendant']['rashi']} ({chart['ascendant']['dms']}) | "

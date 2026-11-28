@@ -199,9 +199,11 @@ export default function ConsumerHome() {
               </div>
               <div className="mt-3">
                 <div className="text-sm font-bold text-white group-hover:text-amber-300">
-                  {lang === "En" ? cat.title : cat.title_hi}
+                  {lang === "En" ? cat.title : (cat.title_hi || cat.title)}
                 </div>
-                <p className="mt-1 text-xs text-slate-400">{cat.description}</p>
+                <p className="mt-1 text-xs text-slate-400">
+                  {lang === "En" ? cat.description : (cat.description_hi || cat.description)}
+                </p>
               </div>
             </button>
           ))}

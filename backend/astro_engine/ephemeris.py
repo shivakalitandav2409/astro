@@ -23,6 +23,30 @@ RASHI_LORDS = [
     "Venus", "Mars", "Jupiter", "Saturn", "Saturn", "Jupiter",
 ]
 
+PLANET_NAMES_HI = {
+    "Sun": "सूर्य", "Moon": "चंद्रमा", "Mars": "मंगल", "Mercury": "बुध",
+    "Jupiter": "गुरु", "Venus": "शुक्र", "Saturn": "शनि", "Rahu": "राहु", "Ketu": "केतु",
+}
+
+RASHIS_HI = [
+    "मेष (Aries)", "वृषभ (Taurus)", "मिथुन (Gemini)", "कर्क (Cancer)",
+    "सिंह (Leo)", "कन्या (Virgo)", "तुला (Libra)", "वृश्चिक (Scorpio)",
+    "धनु (Sagittarius)", "मकर (Capricorn)", "कुंभ (Aquarius)", "मीन (Pisces)",
+]
+
+RASHI_LORDS_HI = [
+    "मंगल", "शुक्र", "बुध", "चंद्रमा", "सूर्य", "बुध",
+    "शुक्र", "मंगल", "गुरु", "शनि", "शनि", "गुरु",
+]
+
+DIGNITY_HI = {
+    "Exalted": "उच्च (शुभ)",
+    "Debilitated": "नीच (सावधानी)",
+    "Own Sign": "स्वराशि",
+    "Friendly": "मित्र राशि",
+    "Neutral / Mixed": "सामान्य",
+}
+
 NAKSHATRAS = [
     ("Ashwini", "Ketu"), ("Bharani", "Venus"), ("Krittika", "Sun"),
     ("Rohini", "Moon"), ("Mrigashira", "Mars"), ("Ardra", "Rahu"),
@@ -243,21 +267,26 @@ def compute_chart(
         dignity = _dignity(name, sign_idx)
         planets.append({
             "planet": name,
+            "planet_hi": PLANET_NAMES_HI.get(name, name),
             "abbr": abbr,
             "longitude": round(lon, 4),
             "sign_index": sign_idx + 1,
             "rashi": RASHIS[sign_idx],
+            "rashi_hi": RASHIS_HI[sign_idx],
             "degree_in_sign": round(deg_in_sign, 4),
             "dms": _fmt_dms(deg_in_sign),
             "house": house,
             "nakshatra": NAKSHATRAS[nak_idx][0],
             "nakshatra_lord": NAKSHATRAS[nak_idx][1],
+            "nakshatra_lord_hi": PLANET_NAMES_HI.get(NAKSHATRAS[nak_idx][1], NAKSHATRAS[nak_idx][1]),
             "pada": pada,
             "retrograde": speed < 0 and name != "Rahu",
             "dignity": dignity,
+            "dignity_hi": DIGNITY_HI.get(dignity, "सामान्य"),
             "pakka_ghar": house in PAKKA_GHAR.get(name, set()),
             "navamsa_sign_index": d9_sign + 1,
             "navamsa_rashi": RASHIS[d9_sign],
+            "navamsa_rashi_hi": RASHIS_HI[d9_sign],
             "upay_id": upay_id,
             "is_benefic": dignity in ("Exalted", "Own Sign", "Friendly") or house in (1, 2, 4, 5, 9, 10, 11),
         })
@@ -271,25 +300,31 @@ def compute_chart(
     k_pada = int((ketu_lon % (360.0 / 27.0)) // (360.0 / 108.0)) + 1
     k_d9_start = {0: 0, 1: 9, 2: 6, 3: 3}[k_sign % 4]
     k_d9_sign = (k_d9_start + int(k_deg // (30.0 / 9.0))) % 12
+    k_dig = _dignity("Ketu", k_sign)
     planets.append({
         "planet": "Ketu",
+        "planet_hi": PLANET_NAMES_HI.get("Ketu", "केतु"),
         "abbr": "Ke",
         "longitude": round(ketu_lon, 4),
         "sign_index": k_sign + 1,
         "rashi": RASHIS[k_sign],
+        "rashi_hi": RASHIS_HI[k_sign],
         "degree_in_sign": round(k_deg, 4),
         "dms": _fmt_dms(k_deg),
         "house": k_house,
         "nakshatra": NAKSHATRAS[k_nak][0],
         "nakshatra_lord": NAKSHATRAS[k_nak][1],
+        "nakshatra_lord_hi": PLANET_NAMES_HI.get(NAKSHATRAS[k_nak][1], NAKSHATRAS[k_nak][1]),
         "pada": k_pada,
         "retrograde": rahu_speed < 0,
-        "dignity": _dignity("Ketu", k_sign),
+        "dignity": k_dig,
+        "dignity_hi": DIGNITY_HI.get(k_dig, "सामान्य"),
         "pakka_ghar": k_house in PAKKA_GHAR["Ketu"],
         "navamsa_sign_index": k_d9_sign + 1,
         "navamsa_rashi": RASHIS[k_d9_sign],
+        "navamsa_rashi_hi": RASHIS_HI[k_d9_sign],
         "upay_id": 106,
-        "is_benefic": _dignity("Ketu", k_sign) in ("Exalted", "Own Sign", "Friendly") or k_house in (3, 6, 9, 11),
+        "is_benefic": k_dig in ("Exalted", "Own Sign", "Friendly") or k_house in (3, 6, 9, 11),
     })
 
     # Compute current Gochar transits relative to natal Lagna
@@ -326,7 +361,9 @@ def compute_chart(
             "house": h,
             "sign_index": ((lagna_sign + h - 1) % 12) + 1,
             "rashi": RASHIS[(lagna_sign + h - 1) % 12],
+            "rashi_hi": RASHIS_HI[(lagna_sign + h - 1) % 12],
             "lord": RASHI_LORDS[(lagna_sign + h - 1) % 12],
+            "lord_hi": RASHI_LORDS_HI[(lagna_sign + h - 1) % 12],
             "planets": [p["abbr"] for p in planets if p["house"] == h],
         }
         for h in range(1, 13)
@@ -337,7 +374,9 @@ def compute_chart(
             "house": h,
             "sign_index": h,  # Lal Kitab places Aries/House 1 fixed at top
             "rashi": RASHIS[h - 1],
+            "rashi_hi": RASHIS_HI[h - 1],
             "lord": RASHI_LORDS[h - 1],
+            "lord_hi": RASHI_LORDS_HI[h - 1],
             "planets": [p["abbr"] for p in planets if p["house"] == h],
         }
         for h in range(1, 13)
@@ -348,6 +387,7 @@ def compute_chart(
             "house": h,
             "sign_index": ((lagna_sign + h - 1) % 12) + 1,
             "rashi": RASHIS[(lagna_sign + h - 1) % 12],
+            "rashi_hi": RASHIS_HI[(lagna_sign + h - 1) % 12],
             "planets": [p["abbr"] for p in gochar_planets if p["house"] == h],
         }
         for h in range(1, 13)
@@ -362,6 +402,9 @@ def compute_chart(
         "ascendant": {
             "sign_index": lagna_sign + 1,
             "rashi": RASHIS[lagna_sign],
+            "rashi_hi": RASHIS_HI[lagna_sign],
+            "lord": RASHI_LORDS[lagna_sign],
+            "lord_hi": RASHI_LORDS_HI[lagna_sign],
             "degree": round(asc_deg % 30.0, 4),
             "dms": _fmt_dms(asc_deg % 30.0),
             "mc_dms": _fmt_dms(mc_deg % 30.0),
@@ -425,6 +468,7 @@ def compute_vimshottari_dashas(dob: str, moon_lon: float, today_dt: date | None 
         m_idx = order_names.index(m_planet)
         sub_rot = DASHA_ORDER[m_idx:] + DASHA_ORDER[:m_idx]
         sub_cursor = cursor
+        m_hi = PLANET_NAMES_HI.get(m_planet, m_planet)
 
         for s_planet, s_yrs in sub_rot:
             # Nominal Antardasha proportion = (m_yrs * s_yrs) / 120 years, scaled if first Mahadasha is partial
@@ -434,13 +478,17 @@ def compute_vimshottari_dashas(dob: str, moon_lon: float, today_dt: date | None 
             s_days = max(1, int(round(raw_sub_years * 365.2425)))
             s_end = min(end_d, sub_cursor + timedelta(days=s_days))
             s_curr = sub_cursor <= today <= s_end
+            s_hi = PLANET_NAMES_HI.get(s_planet, s_planet)
             antardashas.append({
                 "maha_planet": m_planet,
+                "maha_planet_hi": m_hi,
                 "planet": s_planet,
+                "planet_hi": s_hi,
                 "start_date": sub_cursor.strftime("%d-%m-%Y"),
                 "end_date": s_end.strftime("%d-%m-%Y"),
                 "is_current": s_curr,
                 "summary": f"{m_planet} Mahadasha / {s_planet} Antardasha activates {s_planet}'s natal house significations.",
+                "summary_hi": f"{m_hi} महादशा में {s_hi} की अंतर्दशा आपके कर्म और संबंधित भाव के फल को जाग्रत करती है।",
             })
             if s_curr:
                 p_cursor = sub_cursor
@@ -448,25 +496,32 @@ def compute_vimshottari_dashas(dob: str, moon_lon: float, today_dt: date | None 
                     p_days = max(1, int(round(s_days * (p_yrs / 120.0))))
                     p_end = min(s_end, p_cursor + timedelta(days=p_days))
                     p_curr = p_cursor <= today <= p_end
+                    p_hi = PLANET_NAMES_HI.get(p_planet, p_planet)
                     pratyantars_for_curr.append({
                         "maha_planet": m_planet,
+                        "maha_planet_hi": m_hi,
                         "antar_planet": s_planet,
+                        "antar_planet_hi": s_hi,
                         "planet": p_planet,
+                        "planet_hi": p_hi,
                         "start_date": p_cursor.strftime("%d-%m-%Y"),
                         "end_date": p_end.strftime("%d-%m-%Y"),
                         "is_current": p_curr,
                         "summary": f"{m_planet} / {s_planet} / {p_planet} Pratyantardasha transit activation.",
+                        "summary_hi": f"{m_hi} / {s_hi} / {p_hi} प्रत्यंतर्दशा की सूक्ष्म सक्रियता अवधि।",
                     })
                     p_cursor = p_end + timedelta(days=1)
             sub_cursor = s_end + timedelta(days=1)
 
         mahadashas.append({
             "planet": m_planet,
+            "planet_hi": m_hi,
             "duration_years": round(eff_years, 2),
             "start_date": cursor.strftime("%d-%m-%Y"),
             "end_date": end_d.strftime("%d-%m-%Y"),
             "is_current": is_current,
             "summary": f"{m_planet} Mahadasha governs growth, duties, and karmic themes linked to {m_planet}'s natal dignity.",
+            "summary_hi": f"{m_hi} की महादशा जीवन में विकास, कर्तव्य और ग्रह की जन्मकालीन स्थिति के अनुसार फल देती है।",
         })
         cursor = end_d + timedelta(days=1)
 
@@ -479,13 +534,16 @@ def compute_vimshottari_dashas(dob: str, moon_lon: float, today_dt: date | None 
     while lk_cursor < birth_date + timedelta(days=int(105 * 365.2425)):
         for lp, ly in lk_cycle:
             l_end = lk_cursor + timedelta(days=int(round(ly * 365.2425)))
+            lp_hi = PLANET_NAMES_HI.get(lp, lp)
             lk_dashas.append({
                 "planet": lp,
+                "planet_hi": lp_hi,
                 "years": ly,
                 "start_date": lk_cursor.strftime("%d-%m-%Y"),
                 "end_date": l_end.strftime("%d-%m-%Y"),
                 "is_current": lk_cursor <= today <= l_end,
                 "summary": f"Lal Kitab {lp} cycle ({ly} yr): highlights Pakka Ghar activation & Karma balance.",
+                "summary_hi": f"लाल किताब {lp_hi} चक्र ({ly} वर्ष): पक्का घर और कर्म संतुलन को सक्रिय करता है।",
             })
             lk_cursor = l_end + timedelta(days=1)
             if len(lk_dashas) >= 27:
@@ -503,44 +561,88 @@ def compute_vimshottari_dashas(dob: str, moon_lon: float, today_dt: date | None 
 
 def _house_predictions(chart: dict[str, Any]) -> list[dict[str, Any]]:
     house_themes = [
-        (1, "Personality, Health & Vitality", 101, "Offer water to the morning Sun in copper and avoid ego conflicts."),
-        (2, "Wealth, Family & Speech", 105, "Apply turmeric or saffron tilak daily for Jupiter stability."),
-        (3, "Courage, Siblings & Initiative", 103, "Share sweet roti or jaggery on Tuesdays to harmonize Mars."),
-        (4, "Home, Mother & Peace of Mind", 102, "Keep silver close or drink milk from a silver cup on Mondays."),
-        (5, "Education, Intellect & Children", 105, "Respect elders/mentors and donate yellow lentils on Thursdays."),
-        (6, "Health Resilience, Routine & Debts", 104, "Feed green fodder to cows on Wednesdays and keep speech measured."),
-        (7, "Partnership, Marriage & Trade", 106, "Wear clean ironed attire and donate white sweets on Fridays."),
-        (8, "Longevity, Transformation & Research", 103, "Keep humility high and donate mustard oil on Saturdays."),
-        (9, "Fortune, Higher Learning & Dharma", 105, "Follow righteous counsel and honor ancestral traditions."),
-        (10, "Career, Status & Karma", 101, "Maintain consistent discipline at work; light a lamp every Saturday evening."),
-        (11, "Gains, Networks & Aspirations", 105, "Nurture reliable friendships and practice charitable giving."),
-        (12, "Expenses, Foreign Travel & Liberation", 104, "Keep a square silver piece in wallet and practice calm evening reflection."),
+        (1, "Personality, Health & Vitality", "व्यक्तित्व, स्वास्थ्य एवं आत्मबल", 101,
+         "Offer water to the morning Sun in copper and avoid ego conflicts.",
+         "तांबे के लोटे से सूर्य देव को जल अर्पित करें और अहंकार से बचें।"),
+        (2, "Wealth, Family & Speech", "धन, परिवार एवं वाणी", 105,
+         "Apply turmeric or saffron tilak daily for Jupiter stability.",
+         "रोजाना माथे पर हल्दी या केसर का तिलक लगाएं और वाणी में मिठास रखें।"),
+        (3, "Courage, Siblings & Initiative", "पराक्रम, भाई-बहन एवं साहस", 103,
+         "Share sweet roti or jaggery on Tuesdays to harmonize Mars.",
+         "मंगलवार को मीठी रोटी या गुड़ का दान करें और भाइयों से सौहार्द रखें।"),
+        (4, "Home, Mother & Peace of Mind", "माता, गृह सुख एवं मानसिक शांति", 102,
+         "Keep silver close or drink milk from a silver cup on Mondays.",
+         "चांदी का चौकोर टुकड़ा पास रखें या सोमवार को चांदी के पात्र में दूध पिएं।"),
+        (5, "Education, Intellect & Children", "विद्या, बुद्धि, संतान एवं ज्ञान", 105,
+         "Respect elders/mentors and donate yellow lentils on Thursdays.",
+         "गुरुजनों का आदर करें और गुरुवार को चने की दाल या पीली वस्तुओं का दान करें।"),
+        (6, "Health Resilience, Routine & Debts", "रोग, ऋण, शत्रु एवं स्वास्थ्य रक्षा", 104,
+         "Feed green fodder to cows on Wednesdays and keep speech measured.",
+         "बुधवार को गाय को हरा चारा खिलाएं और कर्ज के लेन-देन में सतर्क रहें।"),
+        (7, "Partnership, Marriage & Trade", "दांपत्य जीवन, विवाह एवं साझेदारी", 106,
+         "Wear clean ironed attire and donate white sweets on Fridays.",
+         "साफ-सुथरे वस्त्र पहनें और शुक्रवार को मंदिर में सफेद मिठाई या खीर अर्पित करें।"),
+        (8, "Longevity, Transformation & Research", "आयु, अनुसंधान एवं आकस्मिक लाभ", 103,
+         "Keep humility high and donate mustard oil on Saturdays.",
+         "शनिवार को सरसों के तेल का दान करें और स्वभाव में विनम्रता बनाए रखें।"),
+        (9, "Fortune, Higher Learning & Dharma", "भाग्य, धर्म, पिता एवं उच्च शिक्षा", 105,
+         "Follow righteous counsel and honor ancestral traditions.",
+         "माता-पिता और बुजुर्गों का चरण स्पर्श करें व धार्मिक स्थलों की यात्रा करें।"),
+        (10, "Career, Status & Karma", "कर्म, आजीविका, पद-प्रतिष्ठा एवं सम्मान", 101,
+         "Maintain consistent discipline at work; light a lamp every Saturday evening.",
+         "कार्यक्षेत्र में ईमानदारी बरतें और शनिवार शाम को पीपल के पास दीपक जलाएं।"),
+        (11, "Gains, Networks & Aspirations", "आय, लाभ, मित्र एवं मनोकामना पूर्ति", 105,
+         "Nurture reliable friendships and practice charitable giving.",
+         "सच्चे मित्रों का साथ निभाएं और यथासंभव जरूरतमंदों की गुप्त सहायता करें।"),
+        (12, "Expenses, Foreign Travel & Liberation", "व्यय, विदेश यात्रा, शयन सुख एवं मोक्ष", 104,
+         "Keep a square silver piece in wallet and practice calm evening reflection.",
+         "बटुए में चांदी का चौकोर टुकड़ा रखें और रात को सोने से पहले शांत चित्त होकर ध्यान करें।"),
     ]
     out = []
-    for h_num, theme, upay_id, upay_text in house_themes:
+    for h_num, theme_en, theme_hi, upay_id, upay_en, upay_hi in house_themes:
         h_obj = chart["houses"][h_num - 1]
         in_house = [p for p in chart["planets"] if p["house"] == h_num]
+        rashi_en = h_obj.get("rashi", "")
+        rashi_hi = h_obj.get("rashi_hi", rashi_en)
+        lord_en = h_obj.get("lord", "")
+        lord_hi = h_obj.get("lord_hi", lord_en)
+
         if in_house:
-            p_desc = "; ".join(f"{p['planet']} ({p['dignity']}, {p['dms']})" for p in in_house)
-            pred = (
-                f"House {h_num} ({h_obj['rashi']}, lord {h_obj['lord']}) governs {theme}. "
-                f"Occupied by {p_desc}, activating focused momentum and practical karma in these matters."
+            p_desc_en = "; ".join(f"{p['planet']} ({p['dignity']}, {p['dms']})" for p in in_house)
+            p_desc_hi = ", ".join(f"{p.get('planet_hi', p['planet'])} ({p.get('dignity_hi', p['dignity'])}, {p['dms']})" for p in in_house)
+            pred_en = (
+                f"House {h_num} ({rashi_en}, lord {lord_en}) governs {theme_en}. "
+                f"Occupied by {p_desc_en}, activating focused momentum and practical karma in these matters."
+            )
+            pred_hi = (
+                f"भाव {h_num} ({rashi_hi}, स्वामी: {lord_hi}) {theme_hi} का प्रतीक है। "
+                f"इस भाव में {p_desc_hi} स्थित होकर इन विषयों में सक्रिय प्रभाव और ऊर्जा का संचार कर रहे हैं।"
             )
         else:
-            pred = (
-                f"House {h_num} ({h_obj['rashi']}, ruled by {h_obj['lord']}) governs {theme}. "
-                f"House outcomes follow {h_obj['lord']}'s natal strength and ongoing Dasha transits."
+            pred_en = (
+                f"House {h_num} ({rashi_en}, ruled by {lord_en}) governs {theme_en}. "
+                f"House outcomes follow {lord_en}'s natal strength and ongoing Dasha transits."
+            )
+            pred_hi = (
+                f"भाव {h_num} ({rashi_hi}, स्वामी: {lord_hi}) {theme_hi} को दर्शाता है। "
+                f"इसके परिणाम स्वामी {lord_hi} के जन्मकालीन बल और चल रही दशा के अनुसार प्राप्त होंगे।"
             )
         out.append({
             "prediction_id": 700 + h_num,
             "house": h_num,
-            "rashi": h_obj["rashi"],
-            "lord": h_obj["lord"],
-            "theme": theme,
+            "rashi": rashi_en,
+            "rashi_hi": rashi_hi,
+            "lord": lord_en,
+            "lord_hi": lord_hi,
+            "theme": theme_en,
+            "theme_hi": theme_hi,
             "planets": [p["planet"] for p in in_house],
-            "prediction": pred,
+            "planets_hi": [p.get("planet_hi", p["planet"]) for p in in_house],
+            "prediction": pred_en,
+            "prediction_hi": pred_hi,
             "upay_id": upay_id,
-            "upay": upay_text,
+            "upay": upay_en,
+            "upay_hi": upay_hi,
         })
     return out
 
@@ -553,20 +655,134 @@ def _vivaran_desk(chart: dict[str, Any]) -> list[dict[str, Any]]:
     sat = next(p for p in chart["planets"] if p["planet"] == "Saturn")
     jup = next(p for p in chart["planets"] if p["planet"] == "Jupiter")
 
+    m_lord_hi = PLANET_NAMES_HI.get(moon["nakshatra_lord"], moon["nakshatra_lord"])
+
     # Note: index_id in [8, 9, 10, 20] triggers free Kalyankari dialog in APK!
     return [
-        {"index_id": 1, "desk": "Lagna (Ascendant)", "value": f"{asc['rashi'].split()[0]} ({asc['dms']})", "is_prediction": "Yes", "detail": f"Your Lagna rises in {asc['rashi']} at {asc['dms']}, shaping temperament and physical vitality."},
-        {"index_id": 2, "desk": "Janma Rashi (Moon)", "value": moon["rashi"].split()[0], "is_prediction": "Yes", "detail": f"Moon is in {moon['rashi']} ({moon['dms']}), guiding emotional depth and mental resilience."},
-        {"index_id": 3, "desk": "Janma Nakshatra", "value": f"{moon['nakshatra']} (P{moon['pada']})", "is_prediction": "Yes", "detail": f"Born in {moon['nakshatra']} Nakshatra Pada {moon['pada']} ruled by {moon['nakshatra_lord']}."},
-        {"index_id": 4, "desk": "Sun Placement", "value": f"H{sun['house']} · {sun['dignity']}", "is_prediction": "Yes", "detail": f"Sun occupies House {sun['house']} in {sun['rashi']}, directing career authority and vitality."},
-        {"index_id": 5, "desk": "Jupiter Yoga", "value": f"H{jup['house']} · {jup['dignity']}", "is_prediction": "Yes", "detail": f"Jupiter in House {jup['house']} illuminates wisdom, mentors, and long-term fortune."},
-        {"index_id": 6, "desk": "Saturn Karma", "value": f"H{sat['house']} · {sat['dignity']}", "is_prediction": "Yes", "detail": f"Saturn in House {sat['house']} rewards patience, ethical effort, and persistence."},
-        {"index_id": 8, "desk": "Kalyankari Navgrah", "value": "Pooja Advisory", "is_prediction": "Yes", "product_id": 8, "detail": "Auspicious Navgrah harmonization suggested for planetary balance (Kalyankari Exempt Tile #8)."},
-        {"index_id": 9, "desk": "Ishta Devata Remedy", "value": "Spiritual Path", "is_prediction": "Yes", "product_id": 8, "detail": "Recommended mantra meditation based on 5th & 9th house harmony (Kalyankari Exempt Tile #9)."},
-        {"index_id": 10, "desk": "Makaan & Vahaan Puja", "value": "Property Peace", "is_prediction": "Yes", "product_id": 8, "detail": "4th house stability blessing for home harmony and peace (Kalyankari Exempt Tile #10)."},
-        {"index_id": 20, "desk": "Kalyankari Shanti", "value": "View Puja", "is_prediction": "Yes", "product_id": 8, "detail": "Kalyankari Navgrah Shanti Puja guidance available directly (Kalyankari Exempt Tile #20)."},
-        {"index_id": 11, "desk": "Ayanamsa (Lahiri)", "value": chart["ayanamsa"], "is_prediction": "No", "detail": "Exact Chitrapaksha Lahiri sidereal offset."},
-        {"index_id": 12, "desk": "Lucky Day & Color", "value": "Thu / Saffron", "is_prediction": "No", "detail": "Supportive weekly rhythm aligned to Lagna lord."},
+        {
+            "index_id": 1,
+            "desk": "Lagna (Ascendant)",
+            "desk_hi": "लग्न (Lagna)",
+            "value": f"{asc['rashi'].split()[0]} ({asc['dms']})",
+            "value_hi": f"{asc.get('rashi_hi', asc['rashi']).split()[0]} ({asc['dms']})",
+            "is_prediction": "Yes",
+            "detail": f"Your Lagna rises in {asc['rashi']} at {asc['dms']}, shaping temperament and physical vitality.",
+            "detail_hi": f"आपका लग्न {asc.get('rashi_hi', asc['rashi'])} में {asc['dms']} पर उदित हुआ है, जो व्यक्तित्व, आत्मबल और शारीरिक ऊर्जा को संवारता है।",
+        },
+        {
+            "index_id": 2,
+            "desk": "Janma Rashi (Moon)",
+            "desk_hi": "जन्म राशि (चंद्रमा)",
+            "value": moon["rashi"].split()[0],
+            "value_hi": moon.get("rashi_hi", moon["rashi"]).split()[0],
+            "is_prediction": "Yes",
+            "detail": f"Moon is in {moon['rashi']} ({moon['dms']}), guiding emotional depth and mental resilience.",
+            "detail_hi": f"चंद्रमा {moon.get('rashi_hi', moon['rashi'])} ({moon['dms']}) में स्थित है, जो मन, भावनाओं और मानसिक दृढ़ता का मार्गदर्शन करता है।",
+        },
+        {
+            "index_id": 3,
+            "desk": "Janma Nakshatra",
+            "desk_hi": "जन्म नक्षत्र",
+            "value": f"{moon['nakshatra']} (P{moon['pada']})",
+            "value_hi": f"{moon['nakshatra']} (चरण {moon['pada']})",
+            "is_prediction": "Yes",
+            "detail": f"Born in {moon['nakshatra']} Nakshatra Pada {moon['pada']} ruled by {moon['nakshatra_lord']}.",
+            "detail_hi": f"आपका जन्म {moon['nakshatra']} नक्षत्र चरण {moon['pada']} में हुआ, जिसके स्वामी {m_lord_hi} हैं।",
+        },
+        {
+            "index_id": 4,
+            "desk": "Sun Placement",
+            "desk_hi": "सूर्य स्थिति (Sun)",
+            "value": f"H{sun['house']} · {sun['dignity']}",
+            "value_hi": f"भाव {sun['house']} · {sun.get('dignity_hi', sun['dignity'])}",
+            "is_prediction": "Yes",
+            "detail": f"Sun occupies House {sun['house']} in {sun['rashi']}, directing career authority and vitality.",
+            "detail_hi": f"सूर्य देव {sun['house']}वें भाव में {sun.get('rashi_hi', sun['rashi'])} में स्थित हैं, जो नेतृत्व और कार्यक्षेत्र में मान-प्रतिष्ठा प्रदान करते हैं।",
+        },
+        {
+            "index_id": 5,
+            "desk": "Jupiter Yoga",
+            "desk_hi": "बृहस्पति योग (Jupiter)",
+            "value": f"H{jup['house']} · {jup['dignity']}",
+            "value_hi": f"भाव {jup['house']} · {jup.get('dignity_hi', jup['dignity'])}",
+            "is_prediction": "Yes",
+            "detail": f"Jupiter in House {jup['house']} illuminates wisdom, mentors, and long-term fortune.",
+            "detail_hi": f"बृहस्पति {jup['house']}वें भाव में स्थित होकर ज्ञान, विवेक, गुरुजनों की कृपा और दीर्घकालिक सौभाग्य का मार्ग प्रशस्त करते हैं।",
+        },
+        {
+            "index_id": 6,
+            "desk": "Saturn Karma",
+            "desk_hi": "शनि कर्म प्रभाव (Saturn)",
+            "value": f"H{sat['house']} · {sat['dignity']}",
+            "value_hi": f"भाव {sat['house']} · {sat.get('dignity_hi', sat['dignity'])}",
+            "is_prediction": "Yes",
+            "detail": f"Saturn in House {sat['house']} rewards patience, ethical effort, and persistence.",
+            "detail_hi": f"शनि देव {sat['house']}वें भाव में स्थित होकर धैर्य, निष्ठा और निरंतर कर्म का श्रेष्ठ फल प्रदान करते हैं।",
+        },
+        {
+            "index_id": 8,
+            "desk": "Kalyankari Navgrah",
+            "desk_hi": "कल्याणकारी नवग्रह शांति",
+            "value": "Pooja Advisory",
+            "value_hi": "पूजा परामर्श (निःशुल्क)",
+            "is_prediction": "Yes",
+            "product_id": 8,
+            "detail": "Auspicious Navgrah harmonization suggested for planetary balance (Kalyankari Exempt Tile #8).",
+            "detail_hi": "ग्रहों के संतुलन और शुभ ऊर्जा के लिए शुभ नवग्रह समन्वय एवं मार्गदर्शन (निःशुल्क)।",
+        },
+        {
+            "index_id": 9,
+            "desk": "Ishta Devata Remedy",
+            "desk_hi": "इष्ट देवता साधना व उपाय",
+            "value": "Spiritual Path",
+            "value_hi": "आध्यात्मिक मार्ग (निःशुल्क)",
+            "is_prediction": "Yes",
+            "product_id": 8,
+            "detail": "Recommended mantra meditation based on 5th & 9th house harmony (Kalyankari Exempt Tile #9).",
+            "detail_hi": "पंचम एवं नवम भाव के आधार पर आपके इष्ट देव का ध्यान व वैदिक मंत्र साधना (निःशुल्क)।",
+        },
+        {
+            "index_id": 10,
+            "desk": "Makaan & Vahaan Puja",
+            "desk_hi": "मकान व वाहन सुख शांति",
+            "value": "Property Peace",
+            "value_hi": "गृह शांति (निःशुल्क)",
+            "is_prediction": "Yes",
+            "product_id": 8,
+            "detail": "4th house stability blessing for home harmony and peace (Kalyankari Exempt Tile #10).",
+            "detail_hi": "चतुर्थ भाव की स्थिरता और सुख-शांति के लिए विशेष वैदिक शांति मार्गदर्शन (निःशुल्क)।",
+        },
+        {
+            "index_id": 20,
+            "desk": "Kalyankari Shanti",
+            "desk_hi": "कल्याणकारी संपूर्ण शांति",
+            "value": "View Puja",
+            "value_hi": "शांति मार्गदर्शन (निःशुल्क)",
+            "is_prediction": "Yes",
+            "product_id": 8,
+            "detail": "Kalyankari Navgrah Shanti Puja guidance available directly (Kalyankari Exempt Tile #20).",
+            "detail_hi": "समस्त नवग्रह शांति व दोष निवारण का संपूर्ण आध्यात्मिक मार्गदर्शन (निःशुल्क)।",
+        },
+        {
+            "index_id": 11,
+            "desk": "Ayanamsa (Lahiri)",
+            "desk_hi": "अयनांश (लाहिरी)",
+            "value": chart["ayanamsa"],
+            "value_hi": chart["ayanamsa"],
+            "is_prediction": "No",
+            "detail": "Exact Chitrapaksha Lahiri sidereal offset.",
+            "detail_hi": "शुद्ध खगोलीय चित्रापक्ष लाहिरी अयनांश का उपयोग।",
+        },
+        {
+            "index_id": 12,
+            "desk": "Lucky Day & Color",
+            "desk_hi": "शुभ दिन एवं रंग",
+            "value": "Thu / Saffron",
+            "value_hi": "गुरुवार / केसरिया",
+            "is_prediction": "No",
+            "detail": "Supportive weekly rhythm aligned to Lagna lord.",
+            "detail_hi": "लग्न स्वामी के अनुकूल शुभ वार और ऊर्जावान रंग।",
+        },
     ]
 
 
@@ -683,24 +899,30 @@ def compute_matchmaking(
     g_manglik = g_mars["house"] in (1, 2, 4, 7, 8, 12)
 
     kootas = [
-        {"name": "Varna", "obtained": varna, "max": 1, "note": "Mental & spiritual alignment"},
-        {"name": "Vashya", "obtained": vashya, "max": 2, "note": "Mutual attraction & harmony"},
-        {"name": "Tara", "obtained": tara, "max": 3, "note": "Birth star fortune & destiny"},
-        {"name": "Yoni", "obtained": yoni, "max": 4, "note": "Instinctual compatibility"},
-        {"name": "Graha Maitri", "obtained": maitri, "max": 5, "note": f"Moon lords: {bl} & {gl}"},
-        {"name": "Gana", "obtained": gana, "max": 6, "note": "Temperament matching"},
-        {"name": "Bhakoot", "obtained": bhakoot, "max": 7, "note": f"Moon sign house ratio ({diff}/12)"},
-        {"name": "Nadi", "obtained": nadi, "max": 8, "note": "Health & genetic vitality" + (" (Nadi Dosha present)" if nadi == 0 else "")},
+        {"name": "Varna", "name_hi": "वर्ण (Varna)", "obtained": varna, "max": 1, "note": "Mental & spiritual alignment", "note_hi": "मानसिक एवं आध्यात्मिक अनुकूलता"},
+        {"name": "Vashya", "name_hi": "वश्य (Vashya)", "obtained": vashya, "max": 2, "note": "Mutual attraction & harmony", "note_hi": "आपसी आकर्षण एवं सौहार्द"},
+        {"name": "Tara", "name_hi": "तारा (Tara)", "obtained": tara, "max": 3, "note": "Birth star fortune & destiny", "note_hi": "जन्म नक्षत्र भाग्य व कल्याण"},
+        {"name": "Yoni", "name_hi": "योनि (Yoni)", "obtained": yoni, "max": 4, "note": "Instinctual compatibility", "note_hi": "मानसिक व शारीरिक सामंजस्य"},
+        {"name": "Graha Maitri", "name_hi": "ग्रह मैत्री (Graha Maitri)", "obtained": maitri, "max": 5, "note": f"Moon lords: {bl} & {gl}", "note_hi": f"राशि स्वामी: {PLANET_NAMES_HI.get(bl, bl)} व {PLANET_NAMES_HI.get(gl, gl)}"},
+        {"name": "Gana", "name_hi": "गण (Gana)", "obtained": gana, "max": 6, "note": "Temperament matching", "note_hi": "स्वभाव एवं व्यवहार अनुकूलता"},
+        {"name": "Bhakoot", "name_hi": "भकूट (Bhakoot)", "obtained": bhakoot, "max": 7, "note": f"Moon sign house ratio ({diff}/12)", "note_hi": f"राशि स्थिति अनुपात ({diff}/12) - परिवार व प्रेम"},
+        {"name": "Nadi", "name_hi": "नाड़ी (Nadi)", "obtained": nadi, "max": 8, "note": "Health & genetic vitality" + (" (Nadi Dosha present)" if nadi == 0 else ""), "note_hi": "स्वास्थ्य व संतान सुख" + (" (नाड़ी दोष उपस्थित)" if nadi == 0 else "")},
     ]
 
     verdict = "Excellent Match" if total >= 28 else ("Good Compatible Match" if total >= 18 else "Low Guna Score — Remedy Advised")
+    verdict_hi = "उत्कृष्ट मिलान (शुभ विवाह योग)" if total >= 28 else ("उत्तम एवं अनुकूल मिलान" if total >= 18 else "कम गुण मिलान — उपाय आवश्यक")
+    manglik_summary = "Both Manglik (Balanced)" if (b_manglik and g_manglik) else ("Partial Manglik — consult Acharya" if (b_manglik != g_manglik) else "Non-Manglik Match")
+    manglik_summary_hi = "दोनों मांगलिक (दोष शांत व संतुलित)" if (b_manglik and g_manglik) else ("आंशिक मांगलिक — परामर्श आवश्यक" if (b_manglik != g_manglik) else "मांगलिक दोष रहित")
+
     return {
-        "boy": {"name": boy["name"], "moon_rashi": b_moon["rashi"], "nakshatra": b_moon["nakshatra"], "manglik": b_manglik, "mars_house": b_mars["house"]},
-        "girl": {"name": girl["name"], "moon_rashi": g_moon["rashi"], "nakshatra": g_moon["nakshatra"], "manglik": g_manglik, "mars_house": g_mars["house"]},
+        "boy": {"name": boy["name"], "moon_rashi": b_moon["rashi"], "moon_rashi_hi": b_moon.get("rashi_hi", b_moon["rashi"]), "nakshatra": b_moon["nakshatra"], "manglik": b_manglik, "mars_house": b_mars["house"]},
+        "girl": {"name": girl["name"], "moon_rashi": g_moon["rashi"], "moon_rashi_hi": g_moon.get("rashi_hi", g_moon["rashi"]), "nakshatra": g_moon["nakshatra"], "manglik": g_manglik, "mars_house": g_mars["house"]},
         "total_points": total,
         "max_points": 36.0,
         "verdict": verdict,
-        "manglik_summary": "Both Manglik (Balanced)" if (b_manglik and g_manglik) else ("Partial Manglik — consult Acharya" if (b_manglik != g_manglik) else "Non-Manglik Match"),
+        "verdict_hi": verdict_hi,
+        "manglik_summary": manglik_summary,
+        "manglik_summary_hi": manglik_summary_hi,
         "kootas": kootas,
     }
 
@@ -760,6 +982,21 @@ def compute_panchang(target_date: str, latitude: float, longitude: float, tz_off
         5: ["Labh", "Udveg", "Shubh", "Amrit", "Char", "Rog", "Kaal", "Labh"],
     }[wd]
     nature = {"Amrit": "Shubh", "Shubh": "Shubh", "Labh": "Shubh", "Char": "Neutral", "Rog": "Ashubh", "Kaal": "Ashubh", "Udveg": "Ashubh"}
+    choghadiya_hi = {
+        "Amrit": ("अमृत", "सर्वोत्तम शुभ"),
+        "Shubh": ("शुभ", "शुभ व कल्याणकारी"),
+        "Labh": ("लाभ", "लाभदायक व उन्नति"),
+        "Char": ("चर", "सामान्य / गतिमान"),
+        "Rog": ("रोग", "अशुभ (रोग कारक)"),
+        "Kaal": ("काल", "अशुभ (हानिकारक)"),
+        "Udveg": ("उद्वेग", "अशुभ (चिंता कारक)"),
+    }
+    weekday_hi_map = {
+        "Monday": "सोमवार", "Tuesday": "मंगलवार", "Wednesday": "बुधवार",
+        "Thursday": "गुरुवार", "Friday": "शुक्रवार", "Saturday": "शनिवार", "Sunday": "रविवार",
+    }
+    paksha_hi = "शुक्ल पक्ष" if tithi_idx <= 15 else "कृष्ण पक्ष"
+    t_num = tithi_idx if tithi_idx <= 15 else tithi_idx - 15
 
     day_slot_len = (jd_sunset - jd_sunrise) / 8.0
     night_slot_len = (jd_next_sr - jd_sunset) / 8.0
@@ -767,7 +1004,9 @@ def compute_panchang(target_date: str, latitude: float, longitude: float, tz_off
     day_slots = [
         {
             "name": day_seq[i],
+            "name_hi": choghadiya_hi.get(day_seq[i], (day_seq[i], ""))[0],
             "nature": nature[day_seq[i]],
+            "nature_hi": choghadiya_hi.get(day_seq[i], ("", ""))[1],
             "start": _jd_to_local_str(jd_sunrise + i * day_slot_len, tz_offset),
             "end": _jd_to_local_str(jd_sunrise + (i + 1) * day_slot_len, tz_offset),
         }
@@ -776,7 +1015,9 @@ def compute_panchang(target_date: str, latitude: float, longitude: float, tz_off
     night_slots = [
         {
             "name": night_seq[i],
+            "name_hi": choghadiya_hi.get(night_seq[i], (night_seq[i], ""))[0],
             "nature": nature[night_seq[i]],
+            "nature_hi": choghadiya_hi.get(night_seq[i], ("", ""))[1],
             "start": _jd_to_local_str(jd_sunset + i * night_slot_len, tz_offset),
             "end": _jd_to_local_str(jd_sunset + (i + 1) * night_slot_len, tz_offset),
         }
@@ -788,10 +1029,12 @@ def compute_panchang(target_date: str, latitude: float, longitude: float, tz_off
     return {
         "date": target_date,
         "weekday": dt.strftime("%A"),
+        "weekday_hi": weekday_hi_map.get(dt.strftime("%A"), dt.strftime("%A")),
         "place": place_name,
         "sunrise": _jd_to_local_str(jd_sunrise, tz_offset),
         "sunset": _jd_to_local_str(jd_sunset, tz_offset),
-        "tithi": f"{paksha} Tithi #{tithi_idx if tithi_idx <= 15 else tithi_idx - 15}",
+        "tithi": f"{paksha} Tithi #{t_num}",
+        "tithi_hi": f"{paksha_hi} तिथि #{t_num}",
         "nakshatra": NAKSHATRAS[nak_idx][0],
         "yoga_number": yoga_idx,
         "rahu_kaal": rahu_kaal,

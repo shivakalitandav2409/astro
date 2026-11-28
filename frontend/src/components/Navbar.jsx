@@ -38,6 +38,14 @@ export default function Navbar() {
     { to: "/app/dashas", label: t("dashas") },
     { to: "/app/matchmaking", label: t("matchmaking") },
     { to: "/app/panchang", label: t("panchang") },
+  ];
+
+  const mobileLinks = [
+    { to: "/app", label: t("home") },
+    { to: "/app/kundli", label: t("kundli") },
+    { to: "/app/dashas", label: t("dashas") },
+    { to: "/app/matchmaking", label: t("matchmaking") },
+    { to: "/app/panchang", label: t("panchang") },
     { to: "/app/profiles", label: t("profiles") },
     { to: "/app/shop", label: t("store") },
   ];
@@ -168,7 +176,7 @@ export default function Navbar() {
       {menuOpen && (
         <div className="lg:hidden border-t border-slate-800 bg-slate-950 px-4 py-3 space-y-3 animate-fade-up">
           <div className="grid grid-cols-2 gap-2 text-xs">
-            {appLinks.map((lk) => (
+            {mobileLinks.map((lk) => (
               <Link
                 key={lk.to}
                 to={lk.to}

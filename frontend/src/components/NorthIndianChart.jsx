@@ -15,7 +15,13 @@ const HOUSE_COORDS = {
   12: { x: 264, y: 46 },
 };
 
-export default function NorthIndianChart({ houses = [], title = "Lagan Kundli", selectedHouse, onSelectHouse }) {
+export default function NorthIndianChart({
+  houses = [],
+  title = "Lagan Kundli",
+  selectedHouse,
+  onSelectHouse,
+  isHindi = false,
+}) {
   const byHouse = {};
   houses.forEach((h) => {
     byHouse[h.house] = h;
@@ -25,7 +31,9 @@ export default function NorthIndianChart({ houses = [], title = "Lagan Kundli", 
     <div className="cosmic-card animate-fade-up rounded-2xl p-4">
       <div className="mb-3 flex items-center justify-between">
         <h3 className="text-sm font-bold text-amber-300">{title}</h3>
-        <span className="text-[11px] text-slate-400">Tap any house</span>
+        <span className="text-[11px] text-slate-400">
+          {isHindi ? "किसी भी भाव पर क्लिक करें" : "Tap any house"}
+        </span>
       </div>
       <div className="relative mx-auto max-w-[360px]">
         <svg viewBox="0 0 360 360" className="w-full rounded-2xl border border-amber-500/35 bg-slate-950/90 shadow-inner">
@@ -46,6 +54,7 @@ export default function NorthIndianChart({ houses = [], title = "Lagan Kundli", 
             const info = byHouse[hNum] || { sign_index: hNum, planets: [] };
             const isSel = selectedHouse === hNum;
             const pText = (info.planets || []).join(" ");
+            const houseLabel = isHindi ? `घर ${hNum} · रा${info.sign_index}` : `H${hNum} · R${info.sign_index}`;
             return (
               <g
                 key={hNum}
@@ -61,7 +70,7 @@ export default function NorthIndianChart({ houses = [], title = "Lagan Kundli", 
                   strokeWidth="1.5"
                 />
                 <text x={pos.x} y={pos.y - 10} textAnchor="middle" fill="#94a3b8" fontSize="9.5" fontWeight="600">
-                  H{hNum} · R{info.sign_index}
+                  {houseLabel}
                 </text>
                 <text x={pos.x} y={pos.y + 8} textAnchor="middle" fill="#fcd34d" fontSize="12" fontWeight="700">
                   {pText || "—"}

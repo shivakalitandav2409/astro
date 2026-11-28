@@ -29,20 +29,6 @@ export default function ConsumerHome() {
   }, []);
 
   useEffect(() => {
-    if (activeMember && activeMember.plan_id === 0 && upsellShownForId !== activeMember.id) {
-      setUpsellShownForId(activeMember.id);
-      const key = `upsell_seen_${activeMember.id}`;
-      if (!sessionStorage.getItem(key)) {
-        sessionStorage.setItem(key, "1");
-        openUpgradeModal(
-          `${activeMember.name} is currently on the Free Plan. Upgrade to unlock Past/Future Dashas, Remedies (Upay) & Horoscope Categories.`,
-          activeMember.id
-        );
-      }
-    }
-  }, [activeMember, upsellShownForId, openUpgradeModal]);
-
-  useEffect(() => {
     if (!searchQ.trim()) {
       setSearchResults([]);
       return;
@@ -69,11 +55,6 @@ export default function ConsumerHome() {
       }
     }
     if (!currMember) return;
-    const isUnlocked = currMember.plan_id !== 0 || currAccount?.reg_plan_id >= 2;
-    if (!isUnlocked) {
-      openUpgradeModal(`'${cat.title}' predictions require an active Membership Plan for ${currMember.name}.`);
-      return;
-    }
     if (cat.id === 44) {
       navigate("/app/matchmaking");
       return;
@@ -121,31 +102,8 @@ export default function ConsumerHome() {
     }
   }
 
-  const isFree = !activeMember || (activeMember.plan_id === 0 && (account?.reg_plan_id || 0) < 2);
-
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 space-y-8 animate-fade-up">
-      {activeMember && isFree && (
-        <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-amber-500/40 bg-gradient-to-r from-amber-500/15 via-slate-900 to-orange-500/15 p-4">
-          <div>
-            <div className="flex items-center gap-2 text-sm font-bold text-amber-300">
-              <Crown className="h-4 w-4 animate-float" />
-              <span>{activeMember.name} · Free Tier (PlanId = 0)</span>
-            </div>
-            <p className="mt-1 text-xs text-slate-300">
-              Upgrade this profile for full Dashas &amp; Upay remedies, or switch profiles at the top bar to compare Free vs Premium.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => openUpgradeModal("Unlock Remedies (Upay), Past/Future Dashas & all Horoscope Categories.")}
-            className="gold-btn rounded-xl px-4 py-2 text-xs"
-          >
-            Upgrade Plan (₹499+)
-          </button>
-        </div>
-      )}
-
       {/* Hero + Quick Search */}
       <div className="cosmic-card relative overflow-hidden rounded-3xl p-6 md:p-8 grid gap-6 md:grid-cols-2 items-center">
         <div className="space-y-3">
@@ -153,20 +111,22 @@ export default function ConsumerHome() {
             <Sparkles className="h-3.5 w-3.5" /> Swiss Ephemeris Lahiri Engine
           </span>
           <h1 className="text-3xl font-extrabold tracking-tight text-white">
-            {lang === "En" ? "Your Cosmic Blueprint & Remedies" : "आपकी वैदिक एवं लाल किताब कुंडली"}
+            {lang === "En" ? "Your Cosmic Blueprint & Full Plan" : "आपकी संपूर्ण वैदिक एवं लाल किताब कुंडली"}
           </h1>
           <p className="text-sm text-slate-300">
-            Enter anyone’s Name, DOB, Time &amp; City to generate live charts, or manage saved family members cleanly.
+            {lang === "En"
+              ? "Accurate birth chart analysis, planetary dashas, and verified life remedies — completely unlocked."
+              : "सटीक जन्म कुंडली, ग्रह दशाएं और लाल किताब उपाय — सीधे देखें और समझें।"}
           </p>
           <div className="pt-2 flex flex-wrap gap-2.5">
             <Link to="/app/kundli" className="gold-btn rounded-xl px-4 py-2.5 text-xs">
-              Open Kundli &amp; Custom Chart
+              {lang === "En" ? "Open Full Kundli & Report" : "अपनी पूरी कुंडली खोलें"}
             </Link>
             <Link to="/app/profiles" className="flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-xs font-semibold text-slate-200 hover:border-amber-400">
-              <UserPlus className="h-3.5 w-3.5 text-amber-400" /> Add Person Profile
+              <UserPlus className="h-3.5 w-3.5 text-amber-400" /> {lang === "En" ? "Saved Profiles" : "सहेजे गए नाम"}
             </Link>
             <Link to="/app/matchmaking" className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-xs font-semibold text-slate-200 hover:border-amber-400">
-              36-Point Match
+              {lang === "En" ? "36-Guna Matchmaking" : "36 गुण मिलान"}
             </Link>
           </div>
         </div>
@@ -178,7 +138,7 @@ export default function ConsumerHome() {
               type="text"
               value={searchQ}
               onChange={(e) => setSearchQ(e.target.value)}
-              placeholder="Search Remedies, Yantras, Lal Kitab Books, Mantras..."
+              placeholder={lang === "En" ? "Search Remedies, Yantras, Lal Kitab, Mantras..." : "उपाय, यंत्र, मंत्र और लाल किताब खोजें..."}
               className="w-full rounded-xl border border-slate-700 bg-slate-950/90 pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:border-amber-400 focus:outline-none"
             />
           </div>
@@ -194,12 +154,12 @@ export default function ConsumerHome() {
           )}
           <div className="grid grid-cols-2 gap-3 text-xs">
             <Link to="/app/dashas" className="cosmic-hover rounded-2xl border border-slate-800 bg-slate-900/70 p-3.5 transition">
-              <div className="font-bold text-amber-300">Dashas &amp; Varshphal</div>
-              <div className="text-slate-400 mt-0.5">Mahadasha, Antardasha &amp; 35-Yr Lal Kitab</div>
+              <div className="font-bold text-amber-300">{lang === "En" ? "Dashas & Varshphal" : "दशा और वर्षफल"}</div>
+              <div className="text-slate-400 mt-0.5">{lang === "En" ? "Mahadasha, Antar & 35-Yr Cycles" : "महादशा, अंतर्दशा एवं 35 साला चक्र"}</div>
             </Link>
             <Link to="/app/panchang" className="cosmic-hover rounded-2xl border border-slate-800 bg-slate-900/70 p-3.5 transition">
-              <div className="font-bold text-emerald-300">Choghadiya Panchang</div>
-              <div className="text-slate-400 mt-0.5">Live Sunrise/Sunset Muhurat for any city</div>
+              <div className="font-bold text-emerald-300">{lang === "En" ? "Choghadiya Panchang" : "चौघड़िया पंचांग"}</div>
+              <div className="text-slate-400 mt-0.5">{lang === "En" ? "Live Sunrise/Sunset Muhurat" : "सटीक सूर्योदय और शुभ मुहूर्त"}</div>
             </Link>
           </div>
         </div>
@@ -209,11 +169,15 @@ export default function ConsumerHome() {
       <div>
         <div className="mb-4 flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-bold text-white">Horoscope Consultations &amp; Life Categories</h2>
-            <p className="text-xs text-slate-400">Marriage, Child, Matchmaking, Foreign Travel, Property, Career, Health &amp; Wealth.</p>
+            <h2 className="text-lg font-bold text-white">
+              {lang === "En" ? "Horoscope Consultations & Life Guidance" : "जीवन के महत्वपूर्ण क्षेत्र एवं परामर्श"}
+            </h2>
+            <p className="text-xs text-slate-400">
+              {lang === "En" ? "Marriage, Career, Health, Wealth, Family & Travel Insights." : "विवाह, करियर, स्वास्थ्य, धन, संतान एवं विदेश यात्रा।"}
+            </p>
           </div>
-          <span className={`rounded-full px-3 py-1 text-xs font-semibold ${isFree ? "bg-rose-500/15 text-rose-300" : "bg-emerald-500/15 text-emerald-300"}`}>
-            {isFree ? "Free Profile: Categories Locked" : "Premium Unlocked"}
+          <span className="rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-300 flex items-center gap-1.5">
+            <Sparkles className="h-3 w-3" /> {lang === "En" ? "Direct Access" : "पूर्ण विश्लेषण उपलब्ध"}
           </span>
         </div>
 
@@ -229,15 +193,9 @@ export default function ConsumerHome() {
                 <div className="rounded-xl bg-amber-500/15 p-2 text-amber-400">
                   {cat.id === 3 || cat.id === 44 ? <Heart className="h-5 w-5" /> : cat.id === 5 ? <Baby className="h-5 w-5" /> : <Compass className="h-5 w-5" />}
                 </div>
-                {isFree ? (
-                  <span className="flex items-center gap-1 rounded-full bg-rose-500/15 px-2 py-0.5 text-[10px] font-semibold text-rose-300">
-                    <Lock className="h-3 w-3" /> Lock
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-300">
-                    <Unlock className="h-3 w-3" /> Open
-                  </span>
-                )}
+                <span className="flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-300">
+                  <Unlock className="h-3 w-3" /> {lang === "En" ? "Open" : "देखें"}
+                </span>
               </div>
               <div className="mt-3">
                 <div className="text-sm font-bold text-white group-hover:text-amber-300">

@@ -37,20 +37,11 @@ export default function DashaExplorer() {
     <div className="mx-auto max-w-6xl px-4 py-8 space-y-6">
       <div className="cosmic-card rounded-2xl p-5 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-extrabold text-white">Vimshottari & Lal Kitab Dasha Timeline</h1>
+          <h1 className="text-xl font-extrabold text-white">Vimshottari &amp; Lal Kitab Dasha Timeline</h1>
           <p className="text-xs text-slate-400 mt-1">
-            Only the currently running period opens in Free Tier; past & future Dasha interpretations lock until Premium is activated.
+            Complete Mahadasha, Antardasha, Pratyantardasha &amp; 35-Year Lal Kitab planetary cycles computed from natal Moon longitude.
           </p>
         </div>
-        {bundle?.access_tier === "free" && (
-          <button
-            type="button"
-            onClick={() => openUpgradeModal("Unlock all Past & Future Dasha periods and Varshphal cycles.")}
-            className="gold-btn rounded-xl px-4 py-2 text-xs"
-          >
-            Unlock All Past/Future Dashas
-          </button>
-        )}
       </div>
 
       {/* Currently Running Summary */}
@@ -101,16 +92,9 @@ export default function DashaExplorer() {
         {rows.map((item, idx) => (
           <div
             key={idx}
-            onClick={() => {
-              if (item.locked) {
-                openUpgradeModal("Past & Future Dasha predictions require an active Membership Plan.");
-              }
-            }}
             className={`rounded-2xl border p-4 text-xs transition ${
               item.is_current
                 ? "border-emerald-400/60 bg-emerald-950/20"
-                : item.locked
-                ? "cursor-pointer border-rose-500/30 bg-rose-950/10 hover:border-rose-400"
                 : "border-slate-800 bg-slate-900/70"
             }`}
           >
@@ -124,12 +108,8 @@ export default function DashaExplorer() {
                 <span className="rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-[10px] font-bold text-emerald-300">
                   RUNNING NOW
                 </span>
-              ) : item.locked ? (
-                <span className="flex items-center gap-1 rounded-full bg-rose-500/20 px-2 py-0.5 text-[10px] font-semibold text-rose-300">
-                  <Lock className="h-3 w-3" /> Locked
-                </span>
               ) : (
-                <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] text-amber-300">Unlocked</span>
+                <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] text-amber-300">Active</span>
               )}
             </div>
             <div className="mt-1.5 flex items-center gap-2 text-slate-400">
@@ -139,7 +119,7 @@ export default function DashaExplorer() {
                 {item.duration_years ? ` (${item.duration_years} yrs)` : item.years ? ` (${item.years} yrs)` : ""}
               </span>
             </div>
-            <p className="mt-2 text-slate-300">{item.summary || "Current sub-transit period active."}</p>
+            <p className="mt-2 text-slate-300">{item.summary || "Sub-transit period active."}</p>
           </div>
         ))}
       </div>

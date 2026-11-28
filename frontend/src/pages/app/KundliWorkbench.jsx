@@ -27,6 +27,8 @@ export default function KundliWorkbench() {
   const [folders, setFolders] = useState([]);
   const [activeUpay, setActiveUpay] = useState(null);
   const [kalyankariTile, setKalyankariTile] = useState(null);
+  const [downloadLangModal, setDownloadLangModal] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     if (account) {
@@ -74,26 +76,31 @@ export default function KundliWorkbench() {
     }
   }
 
-  async function handleDownloadPdf() {
+  async function executeDownloadPdf(chosenLang = "en") {
+    setDownloading(true);
     try {
       let blob;
       if (guestMode || !activeMember) {
-        blob = await apiFetch("/kundli/custom-pdf", {
+        blob = await apiFetch(`/kundli/custom-pdf?lang=${chosenLang}`, {
           method: "POST",
           body: JSON.stringify({ ...guestForm, target_year: targetYear }),
         });
       } else {
-        blob = await apiFetch(`/kundli/${activeMember.id}/pdf`);
+        blob = await apiFetch(`/kundli/${activeMember.id}/pdf?lang=${chosenLang}`);
       }
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `kundali_${(guestMode ? guestForm.name : activeMember?.name || "report").replace(/\s+/g, "_")}.pdf`;
+      const langSuffix = chosenLang === "hi" ? "_Hindi" : "_English";
+      a.download = `kundali_${(guestMode ? guestForm.name : activeMember?.name || "report").replace(/\s+/g, "_")}${langSuffix}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
-      showToast("Kundali PDF downloaded", "success");
+      showToast(chosenLang === "hi" ? "हिंदी कुंडली PDF डाउनलोड हो गई!" : "Kundali PDF report downloaded!", "success");
+      setDownloadLangModal(false);
     } catch (err) {
-      openUpgradeModal(err.message);
+      showToast(err.message, "error");
+    } finally {
+      setDownloading(false);
     }
   }
 
@@ -150,8 +157,8 @@ export default function KundliWorkbench() {
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-xl font-extrabold text-white">Kundli Workbench (Swiss Ephemeris Lahiri)</h1>
-            <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${bundle?.access_tier === "premium" ? "bg-emerald-500/20 text-emerald-300" : "bg-amber-500/20 text-amber-300"}`}>
-              {bundle?.access_tier === "premium" ? "PREMIUM UNLOCKED" : "FREE TIER ACTIVE"}
+            <span className="rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-[11px] font-bold text-emerald-300">
+              FULL PLAN ACTIVE
             </span>
           </div>
           {bundle && (
@@ -180,11 +187,11 @@ export default function KundliWorkbench() {
           />
           <button
             type="button"
-            onClick={handleDownloadPdf}
+            onClick={() => setDownloadLangModal(true)}
             className="gold-btn flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs"
             title="Download Full Kundali PDF Report"
           >
-            <Download className="h-3.5 w-3.5" /> Download PDF Report
+            <Download className="h-3.5 w-3.5" /> Download Full Plan PDF
           </button>
         </div>
       </div>
@@ -310,40 +317,71 @@ export default function KundliWorkbench() {
           </div>
 
           <div className="lg:col-span-7 space-y-6">
-            <div className="cosmic-card rounded-2xl p-5 overflow-x-auto">
-              <h2 className="mb-3 text-sm font-bold text-amber-300">Exact Sidereal Planetary Table (Lahiri)</h2>
-              <table className="w-full text-left text-xs">
-                <thead className="border-b border-slate-800 text-slate-400">
-                  <tr>
-                    <th className="py-2 pr-3">Graha</th>
-                    <th className="py-2 pr-3">House</th>
-                    <th className="py-2 pr-3">Rashi (Sign)</th>
-                    <th className="py-2 pr-3">Deg</th>
-                    <th className="py-2 pr-3">Nakshatra</th>
-                    <th className="py-2 pr-3">Navamsa</th>
-                    <th className="py-2">Dignity</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/70">
-                  {chart.planets.map((p) => (
-                    <tr key={p.planet} className="hover:bg-slate-900/50">
-                      <td className="py-2 pr-3 font-semibold text-white">
-                        {p.planet} {p.retrograde ? <span className="text-rose-400">(R)</span> : ""}
-                      </td>
-                      <td className="py-2 pr-3 text-amber-300">H{p.house}</td>
-                      <td className="py-2 pr-3">{p.rashi}</td>
-                      <td className="py-2 pr-3 font-mono">{p.dms}</td>
-                      <td className="py-2 pr-3">{p.nakshatra} P{p.pada}</td>
-                      <td className="py-2 pr-3 text-slate-300">{p.navamsa_rashi.split(" ")[0]}</td>
-                      <td className="py-2">
-                        <span className={`rounded px-1.5 py-0.5 text-[10px] ${p.is_benefic ? "bg-emerald-500/15 text-emerald-300" : "bg-rose-500/15 text-rose-300"}`}>
-                          {p.dignity}
-                        </span>
-                      </td>
+            <div className="cosmic-card rounded-2xl p-4 sm:p-5">
+              <h2 className="mb-3 text-sm font-bold text-amber-300">Exact Sidereal Planetary Placements (Lahiri)</h2>
+
+              {/* Mobile Card View (No Horizontal Scrolling) */}
+              <div className="sm:hidden grid gap-2.5">
+                {chart.planets.map((p) => (
+                  <div key={p.planet} className="rounded-xl border border-slate-800 bg-slate-900/80 p-3 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <div className="font-bold text-white text-sm flex items-center gap-1.5">
+                        <span>{p.planet}</span>
+                        {p.retrograde && <span className="rounded bg-rose-500/20 px-1 py-0.5 text-[9px] text-rose-300 font-bold">R</span>}
+                      </div>
+                      <span className="rounded-lg bg-amber-500/20 px-2 py-0.5 text-xs font-bold text-amber-300">
+                        House {p.house}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-slate-300">
+                      <span>{p.rashi}</span>
+                      <span className="font-mono text-amber-200">{p.dms}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] text-slate-400 border-t border-slate-800/80 pt-1.5">
+                      <span>{p.nakshatra} (P{p.pada})</span>
+                      <span className={`font-semibold ${p.is_benefic ? "text-emerald-400" : "text-amber-400"}`}>
+                        {p.dignity}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop Table View */}
+              <div className="hidden sm:block overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="border-b border-slate-800 text-slate-400">
+                    <tr>
+                      <th className="py-2 pr-3">Graha</th>
+                      <th className="py-2 pr-3">House</th>
+                      <th className="py-2 pr-3">Rashi (Sign)</th>
+                      <th className="py-2 pr-3">Deg</th>
+                      <th className="py-2 pr-3">Nakshatra</th>
+                      <th className="py-2 pr-3">Navamsa</th>
+                      <th className="py-2">Dignity</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/70">
+                    {chart.planets.map((p) => (
+                      <tr key={p.planet} className="hover:bg-slate-900/50">
+                        <td className="py-2 pr-3 font-semibold text-white">
+                          {p.planet} {p.retrograde ? <span className="text-rose-400">(R)</span> : ""}
+                        </td>
+                        <td className="py-2 pr-3 text-amber-300">H{p.house}</td>
+                        <td className="py-2 pr-3">{p.rashi}</td>
+                        <td className="py-2 pr-3 font-mono">{p.dms}</td>
+                        <td className="py-2 pr-3">{p.nakshatra} P{p.pada}</td>
+                        <td className="py-2 pr-3 text-slate-300">{p.navamsa_rashi.split(" ")[0]}</td>
+                        <td className="py-2">
+                          <span className={`rounded px-1.5 py-0.5 text-[10px] ${p.is_benefic ? "bg-emerald-500/15 text-emerald-300" : "bg-rose-500/15 text-rose-300"}`}>
+                            {p.dignity}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
             <div className="cosmic-card rounded-2xl p-5">
@@ -446,18 +484,62 @@ export default function KundliWorkbench() {
         </div>
       )}
 
-      {kalyankariTile && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
-          <div className="cosmic-card animate-fade-up max-w-md rounded-2xl p-6 space-y-3">
-            <div className="flex items-center gap-2 text-amber-300 font-bold">
-              <Sparkles className="h-5 w-5" /> {kalyankariTile.desk} (Kalyankari Free #{kalyankariTile.index_id})
+      {/* Choose Your Report Language Modal */}
+      {downloadLangModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md animate-fade-up">
+          <div className="cosmic-card w-full max-w-md rounded-3xl p-6 text-center space-y-5 border border-amber-500/40 shadow-2xl">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500/15 text-amber-400">
+              <Download className="h-7 w-7 animate-bounce" />
             </div>
-            <p className="text-xs leading-relaxed text-slate-200">{kalyankariTile.detail}</p>
-            <div className="flex justify-end gap-2 pt-2">
-              <button onClick={() => setKalyankariTile(null)} className="rounded-xl border border-slate-700 px-4 py-1.5 text-xs text-slate-300">Close</button>
-              <Link to="/app/shop" onClick={() => setKalyankariTile(null)} className="gold-btn rounded-xl px-4 py-1.5 text-xs">
-                View Kalyankari Puja in Store
-              </Link>
+            <div>
+              <h3 className="text-lg font-bold text-white">Choose Your Report Language</h3>
+              <p className="mt-1 text-xs text-amber-200/80 font-medium">अपनी पूरी कुंडली रिपोर्ट की भाषा चुनें</p>
+              <p className="mt-2 text-[11px] text-slate-400">
+                Detailed Swiss Ephemeris calculations, 12-house analysis &amp; personalized Lal Kitab remedies.
+              </p>
+            </div>
+
+            <div className="space-y-3 pt-1">
+              <button
+                type="button"
+                disabled={downloading}
+                onClick={() => executeDownloadPdf("hi")}
+                className="w-full flex items-center justify-between rounded-2xl border border-amber-500/50 bg-gradient-to-r from-amber-500/20 to-orange-500/15 p-4 text-left transition hover:scale-[1.02] hover:border-amber-400"
+              >
+                <div>
+                  <div className="font-bold text-amber-300 text-sm">हिंदी में डाउनलोड करें</div>
+                  <div className="text-[11px] text-slate-300">सरल हिंदी में ग्रह प्रभाव और सटीक उपाय</div>
+                </div>
+                <span className="rounded-xl bg-amber-500 px-3 py-1 text-xs font-bold text-slate-950">
+                  {downloading ? "तैयार हो रहा है..." : "PDF (हिं)"}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                disabled={downloading}
+                onClick={() => executeDownloadPdf("en")}
+                className="w-full flex items-center justify-between rounded-2xl border border-slate-700 bg-slate-900/80 p-4 text-left transition hover:scale-[1.02] hover:border-slate-500"
+              >
+                <div>
+                  <div className="font-bold text-white text-sm">Download in English</div>
+                  <div className="text-[11px] text-slate-400">Conversational English explanations &amp; analysis</div>
+                </div>
+                <span className="rounded-xl bg-slate-800 px-3 py-1 text-xs font-bold text-slate-200">
+                  {downloading ? "Generating..." : "PDF (En)"}
+                </span>
+              </button>
+            </div>
+
+            <div className="pt-2">
+              <button
+                type="button"
+                disabled={downloading}
+                onClick={() => setDownloadLangModal(false)}
+                className="rounded-xl px-5 py-2 text-xs font-semibold text-slate-400 hover:text-white"
+              >
+                Cancel / रद्द करें
+              </button>
             </div>
           </div>
         </div>

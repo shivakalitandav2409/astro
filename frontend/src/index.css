@@ -12,7 +12,7 @@
     font-family: Inter, system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
     overflow-x: hidden;
-    padding-bottom: 3.5rem;
+    padding-bottom: 5.5rem;
   }
   @media (min-width: 640px) {
     body {

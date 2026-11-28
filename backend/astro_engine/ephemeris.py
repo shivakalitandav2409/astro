@@ -63,6 +63,8 @@ PAKKA_GHAR = {
     "Jupiter": {2, 5, 9, 12}, "Venus": {7}, "Saturn": {8, 10, 11}, "Rahu": {12}, "Ketu": {6},
 }
 
+from zoneinfo import ZoneInfo
+
 # Classical Varshphal annual house progression map: natal_house (1..12) -> annual house per year%12 offset (0..11)
 # Matches standard Lal Kitab Varshphal progression shifts where each planet steps predictably by completed age
 VARSHPHAL_SHIFT = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
@@ -80,13 +82,80 @@ NATURAL_FRIENDS = {
 }
 
 
-def to_jd_ut(dob: str, birth_time: str, tz_offset: float) -> float:
+def resolve_historical_tz(
+    dob: str,
+    birth_time: str,
+    tz_offset: float = 5.5,
+    place_name: str = "",
+    iana_tz: str | None = None,
+) -> tuple[float, str]:
+    """
+    Resolve exact historical UTC offset and timezone name for a given birth date, time, and location.
+    Handles Daylight Saving Time (DST) and historical wartime changes.
+    """
     t_str = birth_time.strip()
     fmt = "%Y-%m-%d %H:%M:%S" if len(t_str.split(":")) == 3 else "%Y-%m-%d %H:%M"
-    dt = datetime.strptime(f"{dob.strip()} {t_str}", fmt)
-    ut_dt = dt - timedelta(hours=float(tz_offset))
+    try:
+        naive_dt = datetime.strptime(f"{dob.strip()} {t_str}", fmt)
+    except Exception:
+        naive_dt = datetime(2000, 1, 1, 12, 0)
+
+    target_zone = None
+    if iana_tz:
+        try:
+            target_zone = ZoneInfo(iana_tz)
+        except Exception:
+            target_zone = None
+
+    if not target_zone and place_name:
+        pn = place_name.lower()
+        if any(w in pn for w in ("india", "delhi", "mumbai", "kolkata", "chennai", "bengaluru", "bangalore", "hyderabad", "indore", "pune", "ahmedabad", "jaipur", "varanasi", "lucknow")):
+            target_zone = ZoneInfo("Asia/Kolkata")
+        elif any(w in pn for w in ("london", "uk", "united kingdom", "england", "scotland")):
+            target_zone = ZoneInfo("Europe/London")
+        elif "new york" in pn or "nyc" in pn:
+            target_zone = ZoneInfo("America/New_York")
+        elif any(w in pn for w in ("los angeles", "california", "san francisco")):
+            target_zone = ZoneInfo("America/Los_Angeles")
+        elif "chicago" in pn:
+            target_zone = ZoneInfo("America/Chicago")
+        elif "dubai" in pn or "uae" in pn:
+            target_zone = ZoneInfo("Asia/Dubai")
+        elif "tokyo" in pn or "japan" in pn:
+            target_zone = ZoneInfo("Asia/Tokyo")
+        elif "sydney" in pn or "australia" in pn:
+            target_zone = ZoneInfo("Australia/Sydney")
+        elif "toronto" in pn or "canada" in pn:
+            target_zone = ZoneInfo("America/Toronto")
+        elif "singapore" in pn:
+            target_zone = ZoneInfo("Asia/Singapore")
+
+    if target_zone:
+        try:
+            localized_dt = naive_dt.replace(tzinfo=target_zone)
+            offset_hrs = localized_dt.utcoffset().total_seconds() / 3600.0
+            return offset_hrs, str(target_zone)
+        except Exception:
+            pass
+
+    return float(tz_offset), f"UTC{'+' if tz_offset >= 0 else ''}{tz_offset}"
+
+
+def to_jd_ut(
+    dob: str,
+    birth_time: str,
+    tz_offset: float = 5.5,
+    place_name: str = "",
+    iana_tz: str | None = None,
+) -> tuple[float, float, str]:
+    t_str = birth_time.strip()
+    fmt = "%Y-%m-%d %H:%M:%S" if len(t_str.split(":")) == 3 else "%Y-%m-%d %H:%M"
+    naive_dt = datetime.strptime(f"{dob.strip()} {t_str}", fmt)
+    eff_offset, tz_name = resolve_historical_tz(dob, birth_time, tz_offset, place_name, iana_tz)
+    ut_dt = naive_dt - timedelta(hours=eff_offset)
     hour_dec = ut_dt.hour + ut_dt.minute / 60.0 + ut_dt.second / 3600.0
-    return swe.julday(ut_dt.year, ut_dt.month, ut_dt.day, hour_dec)
+    jd = swe.julday(ut_dt.year, ut_dt.month, ut_dt.day, hour_dec)
+    return jd, eff_offset, tz_name
 
 
 def _fmt_dms(deg: float) -> str:
@@ -124,10 +193,12 @@ def compute_chart(
     latitude: float,
     longitude: float,
     tz_offset: float = 5.5,
+    place_name: str = "",
+    iana_tz: str | None = None,
     reference_dt: datetime | None = None,
 ) -> dict[str, Any]:
     """Compute exact Sidereal Lahiri Lagan, Navamsa, Gochar, and Pakka Ghar positions."""
-    jd_ut = to_jd_ut(dob, birth_time, tz_offset)
+    jd_ut, eff_offset, tz_name = to_jd_ut(dob, birth_time, tz_offset, place_name, iana_tz)
     ayanamsa = swe.get_ayanamsa_ut(jd_ut)
 
     # Tropical Placidus houses -> subtract Lahiri ayanamsa for exact Sidereal Ascendant & MC
@@ -284,6 +355,8 @@ def compute_chart(
 
     return {
         "jd_ut": round(jd_ut, 6),
+        "effective_tz_offset": eff_offset,
+        "timezone_name": tz_name,
         "ayanamsa": _fmt_dms(ayanamsa),
         "ayanamsa_deg": round(ayanamsa, 5),
         "ascendant": {
@@ -505,6 +578,7 @@ def full_kundli_bundle(member: dict[str, Any], target_year: int | None = None) -
         float(member["latitude"]),
         float(member["longitude"]),
         float(member.get("tz_offset", 5.5)),
+        place_name=member.get("place_name", ""),
     )
     varshphal = compute_varshphal_chart(chart, member["dob"], target_year=target_year)
     dashas = compute_vimshottari_dashas(member["dob"], chart["moon_longitude"])

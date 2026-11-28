@@ -83,6 +83,17 @@ class LoginReq(BaseModel):
     force_replace: bool = True
 
 
+class QuickContinueReq(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100)
+    dob: str = Field(..., min_length=8, max_length=12)
+    birth_time: str = Field(..., min_length=4, max_length=8)
+    place_name: str
+    latitude: float
+    longitude: float
+    tz_offset: float = 5.5
+    device_label: str = "Mobile Web Profile"
+
+
 class RegisterAccountReq(BaseModel):
     name: str
     email: str | None = None
@@ -226,65 +237,41 @@ class CrmClientRegReq(BaseModel):
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-def _redact_bundle_for_plan(bundle: dict[str, Any], is_premium: bool) -> dict[str, Any]:
-    """Server-side enforcement mirroring APK Free (`plan_id==0`) vs Premium (`plan_id!=0`)."""
+def _redact_bundle_for_plan(bundle: dict[str, Any], is_premium: bool = True) -> dict[str, Any]:
+    """Return full Kundli bundle with all houses, remedies, dashas, and predictions unlocked."""
     out = dict(bundle)
-    if is_premium:
-        out["access_tier"] = "premium"
-        out["locked_sections"] = []
-        return out
+    out["access_tier"] = "full"
+    out["locked_sections"] = []
 
-    out["access_tier"] = "free"
-    out["locked_sections"] = [
-        "past_future_dashas",
-        "remedies_upay",
-        "premium_vivaran_predictions",
-        "varshphal_age_ranges",
-    ]
-
-    redacted_ghar = []
-    for g in bundle["ghar_predictions"]:
+    # Ensure all remedies and houses are completely unlocked with genuine text
+    unlocked_ghar = []
+    for g in bundle.get("ghar_predictions", []):
         gc = dict(g)
-        if gc["upay_id"] != 0:
-            gc["upay"] = "LOCKED (Upgrade to AstroScience Premium to unlock personalized Upay Remedy)"
-            gc["upay_locked"] = True
-        else:
-            gc["upay_locked"] = False
-        redacted_ghar.append(gc)
-    out["ghar_predictions"] = redacted_ghar
+        gc["upay_locked"] = False
+        unlocked_ghar.append(gc)
+    out["ghar_predictions"] = unlocked_ghar
 
-    dashas = json.loads(json.dumps(bundle["dashas"]))
+    dashas = json.loads(json.dumps(bundle.get("dashas", {})))
     for key in ("mahadashas", "antardashas", "pratyantardashas", "lk_dashas"):
-        for item in dashas[key]:
-            if not item.get("is_current"):
-                item["locked"] = True
-                item["summary"] = "LOCKED — Past/Future Dasha interpretation requires Premium Plan."
-            else:
+        if key in dashas:
+            for item in dashas[key]:
                 item["locked"] = False
     out["dashas"] = dashas
 
-    redacted_ages = []
-    for ar in bundle["age_ranges"]:
+    unlocked_ages = []
+    for ar in bundle.get("age_ranges", []):
         ac = dict(ar)
-        if not ac["is_current"]:
-            ac["locked"] = True
-            ac["summary"] = "LOCKED — Upgrade to Premium to view multi-year Varshphal predictions."
-        else:
-            ac["locked"] = False
-        redacted_ages.append(ac)
-    out["age_ranges"] = redacted_ages
+        ac["locked"] = False
+        unlocked_ages.append(ac)
+    out["age_ranges"] = unlocked_ages
 
-    redacted_viv = []
-    for v in bundle["vivaran"]:
+    unlocked_viv = []
+    for v in bundle.get("vivaran", []):
         vc = dict(v)
-        if vc.get("is_prediction") == "Yes" and vc["index_id"] not in (8, 9, 10, 20) and vc["index_id"] > 3:
-            vc["locked"] = True
-            vc["detail"] = "LOCKED — Activate Kundali Plan for full Astrological Vivaran analysis."
-        else:
-            vc["locked"] = False
-            vc["kalyankari_exempt"] = vc["index_id"] in (8, 9, 10, 20)
-        redacted_viv.append(vc)
-    out["vivaran"] = redacted_viv
+        vc["locked"] = False
+        vc["kalyankari_exempt"] = True
+        unlocked_viv.append(vc)
+    out["vivaran"] = unlocked_viv
     return out
 
 
@@ -424,6 +411,68 @@ def register_account(req: RegisterAccountReq):
     token, jti = issue_token_for_account(acc["id"], acc["role"], acc["max_sessions"], device_label="Initial Registration")
     acc.pop("password_hash", None)
     return {"token": token, "jti": jti, "account": acc}
+
+
+@app.post("/api/auth/continue")
+def quick_continue(req: QuickContinueReq, existing_account: dict[str, Any] | None = Depends(get_optional_account)):
+    """Unified single-entry onboarding: saves birth profile and establishes secure persistent session."""
+    now = datetime.now(timezone.utc).isoformat()
+    clean_name = req.name.strip()
+    with db_session() as conn:
+        if existing_account:
+            acc_id = existing_account["id"]
+            acc = dict(conn.execute("SELECT * FROM accounts WHERE id=?", (acc_id,)).fetchone())
+            existing_member = conn.execute(
+                "SELECT * FROM family_members WHERE account_id=? AND name=? ORDER BY id ASC LIMIT 1",
+                (acc_id, clean_name),
+            ).fetchone()
+            if existing_member:
+                member_id = existing_member["id"]
+                conn.execute(
+                    """UPDATE family_members SET dob=?, birth_time=?, place_name=?, latitude=?, longitude=?, tz_offset=?
+                       WHERE id=?""",
+                    (req.dob, req.birth_time, req.place_name, req.latitude, req.longitude, req.tz_offset, member_id),
+                )
+            else:
+                cur = conn.execute(
+                    """INSERT INTO family_members(account_id, name, gender, dob, birth_time, place_name, latitude, longitude, tz_offset, is_primary, plan_id, plan_name)
+                       VALUES (?, ?, 'Male', ?, ?, ?, ?, ?, ?, 1, 2, 'Full Kundali Plan')""",
+                    (acc_id, clean_name, req.dob, req.birth_time, req.place_name, req.latitude, req.longitude, req.tz_offset),
+                )
+                member_id = cur.lastrowid
+            token = None
+            jti = existing_account.get("jti")
+        else:
+            pseudo_email = f"user_{uuid.uuid4().hex[:10]}@astro.local"
+            cur = conn.execute(
+                """INSERT INTO accounts(account_type, name, email, phone, role, reg_plan_id, subs_plan_id, max_sessions, language, created_at)
+                   VALUES ('consumer', ?, ?, NULL, 'user', 2, 2, 5, 'En', ?)""",
+                (clean_name, pseudo_email, now),
+            )
+            acc_id = cur.lastrowid
+            m_cur = conn.execute(
+                """INSERT INTO family_members(account_id, name, gender, dob, birth_time, place_name, latitude, longitude, tz_offset, is_primary, plan_id, plan_name)
+                   VALUES (?, ?, 'Male', ?, ?, ?, ?, ?, ?, 1, 2, 'Full Kundali Plan')""",
+                (acc_id, clean_name, req.dob, req.birth_time, req.place_name, req.latitude, req.longitude, req.tz_offset),
+            )
+            member_id = m_cur.lastrowid
+            acc = dict(conn.execute("SELECT * FROM accounts WHERE id=?", (acc_id,)).fetchone())
+            token = None
+            jti = None
+
+        member = dict(conn.execute("SELECT * FROM family_members WHERE id=?", (member_id,)).fetchone())
+
+    if not existing_account:
+        token, jti = issue_token_for_account(acc["id"], acc["role"], acc["max_sessions"], device_label=req.device_label)
+
+    acc.pop("password_hash", None)
+    return {
+        "status": "success",
+        "token": token,
+        "jti": jti,
+        "account": acc,
+        "member": member,
+    }
 
 
 @app.post("/api/auth/logout")
@@ -727,7 +776,11 @@ def get_kundli_bundle(req: KundliBundleReq, account: dict[str, Any] | None = Dep
 
 
 @app.post("/api/kundli/custom-pdf")
-def download_custom_kundli_pdf(req: KundliBundleReq, account: dict[str, Any] | None = Depends(get_optional_account)):
+def download_custom_kundli_pdf(
+    req: KundliBundleReq,
+    lang: str = Query("en"),
+    account: dict[str, Any] | None = Depends(get_optional_account),
+):
     if not (req.dob and req.birth_time):
         raise HTTPException(status_code=400, detail="dob and birth_time required.")
     member = {
@@ -747,16 +800,21 @@ def download_custom_kundli_pdf(req: KundliBundleReq, account: dict[str, Any] | N
         bundle = full_kundli_bundle(member, target_year=req.target_year)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=f"Invalid date or birth time format: {exc}") from exc
-    pdf_bytes = generate_kundli_pdf(bundle)
+    pdf_bytes = generate_kundli_pdf(bundle, lang=lang)
+    filename = "kundali_report_hi.pdf" if lang.lower().startswith("hi") else "kundali_report_en.pdf"
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": 'attachment; filename="client_kundali.pdf"'},
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 
 @app.get("/api/kundli/{member_id}/pdf")
-def download_kundli_pdf(member_id: int, account: dict[str, Any] = Depends(get_current_account)):
+def download_kundli_pdf(
+    member_id: int,
+    lang: str = Query("en"),
+    account: dict[str, Any] = Depends(get_current_account),
+):
     with db_session() as conn:
         row = conn.execute("SELECT * FROM family_members WHERE id=?", (member_id,)).fetchone()
     if not row:
@@ -765,11 +823,12 @@ def download_kundli_pdf(member_id: int, account: dict[str, Any] = Depends(get_cu
     if member["account_id"] != account["id"] and account.get("role") != "crm_agent":
         raise HTTPException(status_code=403, detail="Access denied for this family profile.")
     bundle = full_kundli_bundle(member)
-    pdf_bytes = generate_kundli_pdf(bundle)
+    pdf_bytes = generate_kundli_pdf(bundle, lang=lang)
+    filename = f"kundali_{member_id}_{lang}.pdf"
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="kundali_{member_id}.pdf"'},
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 
@@ -794,14 +853,6 @@ def get_category_consultation(
     m = dict(member)
     if m["account_id"] != account["id"] and account.get("role") != "crm_agent":
         raise HTTPException(status_code=403, detail="Access denied for this family profile.")
-    if m["plan_id"] == 0 and account.get("reg_plan_id", 0) < 2:
-        raise HTTPException(
-            status_code=402,
-            detail={
-                "code": "PREMIUM_REQUIRED",
-                "message": f"'{cat['title']}' predictions require an active Membership Plan on {m['name']}.",
-            },
-        )
     bundle = full_kundli_bundle(m)
     chart = bundle["chart"]
     context_note = ""

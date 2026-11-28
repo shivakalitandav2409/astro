@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { apiFetch, getStoredToken, setStoredToken } from "../api";
+import { translations } from "../locales/translations";
 
 const AppContext = createContext(null);
 
@@ -10,11 +11,20 @@ export function AppProvider({ children }) {
   const [enrolledCourses, setEnrolledCourses] = useState([]);
   const [cartCount, setCartCount] = useState(0);
   const [unreadNotifs, setUnreadNotifs] = useState(0);
-  const [lang, setLang] = useState("En");
+  const [lang, setLangState] = useState(() => localStorage.getItem("astro_lang") || "En");
   const [loadingAuth, setLoadingAuth] = useState(true);
   const [upgradeModal, setUpgradeModal] = useState({ open: false, memberId: null, reason: "" });
   const [playingAudio, setPlayingAudio] = useState(null);
   const [toast, setToast] = useState(null);
+
+  const setLang = useCallback((newLang) => {
+    setLangState(newLang);
+    localStorage.setItem("astro_lang", newLang);
+  }, []);
+
+  const t = useCallback((key) => {
+    return translations[lang]?.[key] || translations["En"]?.[key] || key;
+  }, [lang]);
 
   const showToast = useCallback((message, type = "info") => {
     setToast({ message, type, id: Date.now() });
@@ -121,6 +131,7 @@ export function AppProvider({ children }) {
         unreadNotifs,
         lang,
         setLang,
+        t,
         loadingAuth,
         refreshAccountState,
         demoLogin,

@@ -16,16 +16,20 @@ import { useApp } from "../../context/AppContext";
 
 export default function ConsumerHome() {
   const { account, activeMember, lang, openUpgradeModal, demoLogin, showToast } = useApp();
+  const isHindi = lang === "हिं";
   const [categories, setCategories] = useState([]);
   const [searchQ, setSearchQ] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [upsellShownForId, setUpsellShownForId] = useState(null);
   const [subDialog, setSubDialog] = useState(null);
   const [subStatus, setSubStatus] = useState("Unmarried");
+  const [dailyHoroscope, setDailyHoroscope] = useState(null);
+  const [selZodiac, setSelZodiac] = useState(0);
   const navigate = useNavigate();
 
   useEffect(() => {
     apiFetch("/categories").then((r) => setCategories(r.categories || [])).catch(() => {});
+    apiFetch("/horoscope/daily").then(setDailyHoroscope).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -164,6 +168,98 @@ export default function ConsumerHome() {
           </div>
         </div>
       </div>
+
+      {/* Module 6: Daily Horoscope & Today's Lal Kitab Totka */}
+      {dailyHoroscope && (
+        <div className="cosmic-card animate-fade-up rounded-3xl p-5 md:p-6 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-amber-400" />
+                <h2 className="text-base font-bold text-white">
+                  {isHindi ? "दैनिक राशिफल एवं आज का लाल किताब टोटका" : "Daily Horoscope & Today's Lal Kitab Totka"}
+                </h2>
+              </div>
+              <p className="mt-0.5 text-xs text-slate-400">
+                {isHindi ? "वर्तमान ग्रह गोचर एवं वार के अनुसार सकारात्मक दिनचर्या" : "Planetary transit influences & supportive daily remedies"}
+              </p>
+            </div>
+            <div className="rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-300">
+              {dailyHoroscope.date} · {dailyHoroscope.weekday}
+            </div>
+          </div>
+
+          {/* Today's Special Totka Banner */}
+          <div className="rounded-2xl border border-amber-500/35 bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-amber-500/5 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div>
+              <div className="text-[11px] font-extrabold uppercase tracking-wider text-amber-400">
+                {isHindi ? "★ आज का अचूक लाल किताब टोटका (Today's Totka)" : "★ Today's Special Lal Kitab Totka"}
+              </div>
+              <p className="mt-1 text-xs font-medium text-slate-100 leading-relaxed">
+                {isHindi ? dailyHoroscope.todays_totka_hi : dailyHoroscope.todays_totka_en}
+              </p>
+            </div>
+            <span className="shrink-0 rounded-xl bg-amber-500/20 px-2.5 py-1 text-[11px] font-bold text-amber-300">
+              {isHindi ? "निःशुल्क व सात्विक" : "Pure & Free"}
+            </span>
+          </div>
+
+          {/* 12 Rashi Pills Selector */}
+          <div className="space-y-3 pt-1">
+            <div className="flex gap-1.5 overflow-x-auto pb-1 text-xs scrollbar-none">
+              {dailyHoroscope.zodiac_predictions.map((zp, idx) => (
+                <button
+                  key={zp.sign}
+                  type="button"
+                  onClick={() => setSelZodiac(idx)}
+                  className={`shrink-0 rounded-xl px-3 py-1.5 font-semibold transition ${
+                    selZodiac === idx
+                      ? "bg-amber-500 text-slate-950 shadow-md font-bold"
+                      : "border border-slate-800 bg-slate-900/80 text-slate-300 hover:border-slate-700"
+                  }`}
+                >
+                  {isHindi ? zp.sign_hi : zp.sign}
+                </button>
+              ))}
+            </div>
+
+            {/* Selected Rashi Detail Card */}
+            {dailyHoroscope.zodiac_predictions[selZodiac] && (
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 space-y-2 text-xs">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="font-bold text-amber-300 text-sm">
+                    {isHindi
+                      ? dailyHoroscope.zodiac_predictions[selZodiac].sign_hi
+                      : dailyHoroscope.zodiac_predictions[selZodiac].sign}{" "}
+                    {isHindi ? "राशि दैनिक फलकथन" : "Daily Forecast"}
+                  </div>
+                  <div className="flex items-center gap-3 text-[11px] text-slate-300">
+                    <span>
+                      {isHindi ? "शुभ रंग" : "Lucky Color"}:{" "}
+                      <strong className="text-amber-200">
+                        {isHindi
+                          ? dailyHoroscope.zodiac_predictions[selZodiac].color_hi
+                          : dailyHoroscope.zodiac_predictions[selZodiac].color}
+                      </strong>
+                    </span>
+                    <span>
+                      {isHindi ? "शुभ अंक" : "Lucky Number"}:{" "}
+                      <strong className="text-emerald-300">
+                        {dailyHoroscope.zodiac_predictions[selZodiac].number}
+                      </strong>
+                    </span>
+                  </div>
+                </div>
+                <p className="leading-relaxed text-slate-200">
+                  {isHindi
+                    ? dailyHoroscope.zodiac_predictions[selZodiac].pred_hi
+                    : dailyHoroscope.zodiac_predictions[selZodiac].pred_en}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Horoscope Categories Grid */}
       <div>

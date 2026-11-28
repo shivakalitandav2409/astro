@@ -133,7 +133,7 @@ def generate_kundli_pdf(bundle: dict[str, Any], lang: str = "en") -> bytes:
     if is_hindi:
         meta_line1 = (
             f"जन्म तिथि: {member['dob']} | समय: {member['birth_time']} | "
-            f"स्थान: {member['place_name']} ({member.get('latitude', 0):.2f}°N, {member.get('longitude', 0):.2f}°E)"
+            f"स्थान: {member.get('place_name', 'New Delhi')} ({float(member.get('latitude', 0)):.2f}°N, {float(member.get('longitude', 0)):.2f}°E)"
         )
         meta_line2 = (
             f"लग्न राशि: {chart['ascendant']['rashi']} ({chart['ascendant']['dms']}) | "
@@ -142,7 +142,7 @@ def generate_kundli_pdf(bundle: dict[str, Any], lang: str = "en") -> bytes:
     else:
         meta_line1 = (
             f"Date of Birth: {member['dob']} | Time: {member['birth_time']} | "
-            f"Place: {member['place_name']} ({member.get('latitude', 0):.2f}°N, {member.get('longitude', 0):.2f}°E)"
+            f"Place: {member.get('place_name', 'New Delhi')} ({float(member.get('latitude', 0)):.2f}°N, {float(member.get('longitude', 0)):.2f}°E)"
         )
         meta_line2 = (
             f"Ascendant (Lagna): {chart['ascendant']['rashi']} ({chart['ascendant']['dms']}) | "
@@ -264,6 +264,69 @@ def generate_kundli_pdf(bundle: dict[str, Any], lang: str = "en") -> bytes:
             pdf.multi_cell(pdf.epw, 4.2, f"{remedy_label}{remedy_text}")
 
         pdf.ln(1.5)
+
+    pdf.ln(3)
+
+    # Section 4: 9 Ancestral Debts (लाल किताब 9 ऋण)
+    debts = bundle.get("ancestral_debts") or []
+    if debts:
+        pdf.set_font(fn, "B", 12)
+        pdf.set_text_color(180, 83, 9)
+        pdf.cell(pdf.epw, 7, "4. लाल किताब के 9 ऋण एवं पितृ दोष विश्लेषण" if is_hindi else "4. Lal Kitab 9 Ancestral Debts Analysis", new_x="LMARGIN", new_y="NEXT")
+
+        pdf.set_font(fn, "", 8)
+        active_debts = [d for d in debts if d.get("is_active")]
+        if not active_debts:
+            pdf.set_font(fn, "", 8)
+            pdf.set_text_color(22, 101, 52)
+            pdf.cell(pdf.epw, 5, "• कुंडली में कोई गंभीर पितृ अथवा पूर्वज ऋण सक्रिय नहीं है। समस्त पूर्वज कृपा बनी हुई है।" if is_hindi else "• No severe ancestral debts detected. Native carries favorable ancestral blessings.", new_x="LMARGIN", new_y="NEXT")
+        else:
+            for d in active_debts:
+                pdf.set_font(fn, "B", 8.5)
+                pdf.set_text_color(185, 28, 28)
+                d_name = d["name_hi"] if is_hindi else d["name"]
+                pdf.cell(pdf.epw, 5, f"• {d_name} (सक्रिय / Active)", new_x="LMARGIN", new_y="NEXT")
+
+                pdf.set_font(fn, "", 7.8)
+                pdf.set_text_color(51, 65, 85)
+                symp = d["symptoms_hi"] if is_hindi else d["symptoms_en"]
+                pdf.multi_cell(pdf.epw, 4.2, f"लक्षण / Sign: {symp}")
+
+                pdf.set_font(fn, "B", 7.8)
+                pdf.set_text_color(180, 83, 9)
+                col_rem = d["remedy_hi"] if is_hindi else d["remedy_en"]
+                pdf.multi_cell(pdf.epw, 4.2, f"सामूहिक पारिवारिक उपाय: {col_rem}")
+                pdf.ln(1.5)
+
+    pdf.ln(3)
+
+    # Section 5: Varshphal Parhez & Precautions (वर्षफल परहेज व 40-43 दिन के नियम)
+    parhez = bundle.get("parhez") or {}
+    if parhez:
+        pdf.set_font(fn, "B", 12)
+        pdf.set_text_color(180, 83, 9)
+        pdf.cell(pdf.epw, 7, f"5. वर्षफल परहेज एवं 40-43 दिवसीय नियम (आयु {parhez.get('running_age', '')} वर्ष)" if is_hindi else f"5. Lal Kitab Annual Precautions & 40-43 Day Rules (Age {parhez.get('running_age', '')})", new_x="LMARGIN", new_y="NEXT")
+
+        pdf.set_font(fn, "B", 8.5)
+        pdf.set_text_color(185, 28, 28)
+        pdf.cell(pdf.epw, 5, "क्या न करें (सख्त परहेज / Strict Don'ts):" if is_hindi else "Strict Prohibitions (Don'ts):", new_x="LMARGIN", new_y="NEXT")
+
+        pdf.set_font(fn, "", 7.8)
+        pdf.set_text_color(51, 65, 85)
+        donts = parhez.get("dont_list_hi" if is_hindi else "dont_list_en", [])
+        for item in donts:
+            pdf.multi_cell(pdf.epw, 4.2, f"  ✗ {item}")
+
+        pdf.ln(1)
+        pdf.set_font(fn, "B", 8.5)
+        pdf.set_text_color(22, 101, 52)
+        pdf.cell(pdf.epw, 5, "40-43 दिवसीय उपाय नियम (Rules of Remedy):" if is_hindi else "Lal Kitab 40-43 Day Rules:", new_x="LMARGIN", new_y="NEXT")
+
+        pdf.set_font(fn, "", 7.8)
+        pdf.set_text_color(51, 65, 85)
+        rules = parhez.get("day_rules_hi" if is_hindi else "day_rules_en", [])
+        for r in rules:
+            pdf.multi_cell(pdf.epw, 4.2, f"  ✓ {r}")
 
     pdf.ln(3)
     pdf.set_font(fn, "B", 8)

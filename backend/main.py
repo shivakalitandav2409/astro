@@ -20,8 +20,12 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from backend.astro_engine import (
+    compute_daily_horoscope_and_totka,
+    compute_lal_kitab_debts,
+    compute_life_events_timeline,
     compute_matchmaking,
     compute_panchang,
+    compute_varshphal_parhez,
     full_kundli_bundle,
     generate_kundli_pdf,
     generate_order_invoice_pdf,
@@ -910,6 +914,35 @@ def get_panchang(
             detail="Panchang / Choghadiya range is limited to ±1 month from today (matching AstroScience calendar rule).",
         )
     return compute_panchang(dt_str, latitude, longitude, tz_offset=tz_offset, place_name=place_name)
+
+
+@app.get("/api/horoscope/daily")
+def get_daily_horoscope(target_date: str | None = None):
+    """Daily 12-zodiac forecasts and positive zero-cost daily Lal Kitab Totka."""
+    try:
+        return compute_daily_horoscope_and_totka(target_date)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Failed to generate daily horoscope: {exc}") from exc
+
+
+@app.get("/api/kundli/{member_id}/debts")
+def get_member_debts(member_id: int, account: dict[str, Any] = Depends(get_current_account)):
+    with db_session() as conn:
+        m = conn.execute("SELECT * FROM members WHERE id=? AND account_id=?", (member_id, account["id"])).fetchone()
+    if not m:
+        raise HTTPException(status_code=404, detail="Member profile not found.")
+    bundle = full_kundli_bundle(dict(m))
+    return {"member": dict(m), "ancestral_debts": bundle["ancestral_debts"]}
+
+
+@app.get("/api/kundli/{member_id}/timeline")
+def get_member_timeline(member_id: int, account: dict[str, Any] = Depends(get_current_account)):
+    with db_session() as conn:
+        m = conn.execute("SELECT * FROM members WHERE id=? AND account_id=?", (member_id, account["id"])).fetchone()
+    if not m:
+        raise HTTPException(status_code=404, detail="Member profile not found.")
+    bundle = full_kundli_bundle(dict(m))
+    return {"member": dict(m), "life_events": bundle["life_events"]}
 
 
 # ---------------------------------------------------------------------------

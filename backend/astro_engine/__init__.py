@@ -12,6 +12,11 @@ from .ephemeris import (
     compute_planetary_clashes,
     compute_life_events_timeline,
     compute_daily_horoscope_and_totka,
+    compute_shubh_ashubh_yogas,
+    compute_bifurcated_dasha_predictions,
+    compute_luck_meter,
+    compute_personal_dayfal,
+    compute_category_dates,
 )
 from .pdf_generator import generate_kundli_pdf, generate_order_invoice_pdf
 
@@ -27,6 +32,11 @@ __all__ = [
     "compute_planetary_clashes",
     "compute_life_events_timeline",
     "compute_daily_horoscope_and_totka",
+    "compute_shubh_ashubh_yogas",
+    "compute_bifurcated_dasha_predictions",
+    "compute_luck_meter",
+    "compute_personal_dayfal",
+    "compute_category_dates",
     "generate_kundli_pdf",
     "generate_order_invoice_pdf",
 ]

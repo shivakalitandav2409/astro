@@ -333,7 +333,151 @@ export default function KundliWorkbench() {
       )}
 
       {bundle && chart && (
-        <div className="grid gap-6 lg:grid-cols-12">
+        <>
+          {/* Module 4: Personal DayFal (आज का व्यक्तिगत चंद्र गोचर फल) */}
+          {bundle.personal_dayfal && (
+            <div className="cosmic-card animate-fade-up rounded-2xl p-4 md:p-5 border border-amber-500/35 bg-gradient-to-r from-amber-950/20 via-slate-900/90 to-slate-950 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/80 pb-2.5">
+                <div className="flex items-center gap-2">
+                  <Moon className="h-4 w-4 text-amber-400" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-amber-300">
+                    {isHindi ? "आज का व्यक्तिगत गोचर फल (DayFal)" : "Personal Daily Transit Forecast (DayFal)"}
+                  </span>
+                  <span className="text-[11px] text-slate-400">
+                    ({bundle.personal_dayfal.date} · {bundle.personal_dayfal.weekday})
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full bg-slate-800 px-2.5 py-0.5 text-[10px] text-slate-300">
+                    {isHindi ? `जन्म राशि: ${bundle.personal_dayfal.natal_rashi_hi}` : `Moon Sign: ${bundle.personal_dayfal.natal_rashi_en}`}
+                  </span>
+                  <span
+                    className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+                      bundle.personal_dayfal.type === "Caution"
+                        ? "bg-rose-500/20 text-rose-300 border border-rose-500/30"
+                        : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                    }`}
+                  >
+                    {bundle.personal_dayfal.rating}
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-bold text-white">
+                  {isHindi ? bundle.personal_dayfal.title_hi : bundle.personal_dayfal.title_en}
+                </h3>
+                <p className="mt-1 text-xs text-slate-200 leading-relaxed">
+                  {isHindi ? bundle.personal_dayfal.pred_hi : bundle.personal_dayfal.pred_en}
+                </p>
+              </div>
+
+              <div className="grid gap-2 sm:grid-cols-2 pt-1 text-[11px]">
+                <div className="rounded-xl bg-emerald-950/20 border border-emerald-500/25 p-2.5 space-y-1">
+                  <div className="font-bold text-emerald-300 flex items-center gap-1.5 text-xs">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                    {isHindi ? "आज क्या अवश्य करें (Do's)" : "Today's Recommended Actions (Do's)"}
+                  </div>
+                  <ul className="text-slate-200 space-y-0.5 pl-4 list-disc marker:text-emerald-400">
+                    {(isHindi ? bundle.personal_dayfal.dos_hi : bundle.personal_dayfal.dos_en).map((item, idx) => (
+                      <li key={idx}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="rounded-xl bg-rose-950/20 border border-rose-500/25 p-2.5 space-y-1">
+                  <div className="font-bold text-rose-300 flex items-center gap-1.5 text-xs">
+                    <XCircle className="h-3.5 w-3.5 text-rose-400" />
+                    {isHindi ? "आज किन बातों से बचें (Don'ts)" : "Today's Prohibitions (Don'ts)"}
+                  </div>
+                  <ul className="text-slate-200 space-y-0.5 pl-4 list-disc marker:text-rose-400">
+                    {(isHindi ? bundle.personal_dayfal.donts_hi : bundle.personal_dayfal.donts_en).map((item, idx) => (
+                      <li key={idx}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-800/60 text-[11px] text-slate-300">
+                <div className="flex items-center gap-3">
+                  <span>
+                    {isHindi ? "शुभ रंग" : "Lucky Color"}:{" "}
+                    <strong className="text-amber-300">
+                      {isHindi ? bundle.personal_dayfal.lucky_color_hi : bundle.personal_dayfal.lucky_color_en}
+                    </strong>
+                  </span>
+                  <span>
+                    {isHindi ? "शुभ अंक" : "Lucky Number"}:{" "}
+                    <strong className="text-emerald-400">{bundle.personal_dayfal.lucky_number}</strong>
+                  </span>
+                </div>
+                <span className="text-[10px] text-slate-400">
+                  {isHindi
+                    ? `वर्तमान गोचर: चंद्रमा ${bundle.personal_dayfal.transit_rashi_hi} राशि में (${bundle.personal_dayfal.house_from_moon}वां भाव)`
+                    : `Transit: Moon in ${bundle.personal_dayfal.transit_rashi_en} (${bundle.personal_dayfal.house_from_moon}th from natal)`}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Module 3: 4-Pillar Luck Meter (भाग्य मीटर %) */}
+          {bundle.luck_meter && (
+            <div className="cosmic-card animate-fade-up rounded-2xl p-4 md:p-5 border border-amber-500/30 space-y-3.5">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/80 pb-2">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-amber-400" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-white">
+                    {isHindi ? "4-स्तंभ भाग्य मीटर (Luck Meter)" : "4-Pillar Natal Luck Meter"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-300">{isHindi ? "कुल भाग्यांक:" : "Overall Luck:"}</span>
+                  <span className="rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-3 py-0.5 text-xs font-black text-slate-950 shadow-md">
+                    {bundle.luck_meter.overall_luck}%
+                  </span>
+                </div>
+              </div>
+
+              {/* 4 Pillars Progress Bars */}
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {bundle.luck_meter.pillars.map((pil) => (
+                  <div key={pil.key} className="rounded-xl border border-slate-800 bg-slate-900/60 p-3 space-y-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-semibold text-slate-200">
+                        {isHindi ? pil.title_hi : pil.title_en}
+                      </span>
+                      <span className="font-bold text-amber-300">{pil.score}%</span>
+                    </div>
+                    <div className="h-2 w-full rounded-full bg-slate-800 overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-700 ${
+                          pil.score >= 75
+                            ? "bg-gradient-to-r from-emerald-500 to-emerald-400"
+                            : pil.score >= 60
+                            ? "bg-gradient-to-r from-amber-500 to-yellow-400"
+                            : "bg-gradient-to-r from-rose-500 to-amber-500"
+                        }`}
+                        style={{ width: `${pil.score}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Daily Booster Upay */}
+              <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-2.5 flex items-start gap-2 text-[11px] text-slate-200">
+                <Sparkles className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+                <div>
+                  <strong className="text-amber-300">
+                    {isHindi ? "भाग्यांक संवर्धन लाल किताब उपाय: " : "Daily Luck Booster Upay: "}
+                  </strong>
+                  <span>{isHindi ? bundle.luck_meter.daily_booster_hi : bundle.luck_meter.daily_booster_en}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="grid gap-6 lg:grid-cols-12">
           <div className="lg:col-span-5 space-y-4">
             <div className="flex flex-wrap gap-1.5 rounded-2xl border border-slate-800 bg-slate-950 p-1.5 text-xs">
               {[
@@ -533,6 +677,7 @@ export default function KundliWorkbench() {
             </div>
           </div>
         </div>
+        </>
       )}
 
       {bundle && (
@@ -550,6 +695,24 @@ export default function KundliWorkbench() {
             >
               <Compass className="h-4 w-4" />
               <span>{isHindi ? "12 भाव फलकथन एवं उपाय" : "12-House Predictions & Upay"}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveModule("yogas")}
+              className={`flex items-center gap-2 whitespace-nowrap rounded-xl px-4 py-2.5 text-xs font-bold transition ${
+                activeModule === "yogas"
+                  ? "gold-btn"
+                  : "border border-slate-800 bg-slate-900/80 text-slate-300 hover:border-amber-500/40"
+              }`}
+            >
+              <Flame className="h-4 w-4 text-orange-400" />
+              <span>{isHindi ? "शुभ और अशुभ योग" : "Shubh & Ashubh Yogas"}</span>
+              {bundle.yogas?.active_ashubh_count > 0 && (
+                <span className="rounded-full bg-rose-500/30 px-1.5 py-0.2 text-[10px] text-rose-300 font-bold">
+                  {bundle.yogas.active_ashubh_count} {isHindi ? "अशुभ" : "Doshas"}
+                </span>
+              )}
             </button>
 
             <button
@@ -1084,6 +1247,150 @@ export default function KundliWorkbench() {
                   </p>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Module: Shubh & Ashubh Yogas */}
+          {activeModule === "yogas" && bundle.yogas && (
+            <div className="space-y-6 animate-fade-up">
+              {/* Overview Banner */}
+              <div className="cosmic-card rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border border-amber-500/30">
+                <div className="space-y-1">
+                  <div className="text-sm font-bold text-white flex items-center gap-2">
+                    <Flame className="h-4 w-4 text-orange-400" />
+                    {isHindi ? "कुंडली के विशिष्ट शुभ व अशुभ योग विश्लेषण" : "Classical Shubh & Ashubh Yogas Diagnostic"}
+                  </div>
+                  <p className="text-[11px] text-slate-300">
+                    {isHindi
+                      ? "वैदिक एवं लाल किताब के अनुसार ग्रहों की विशेष युतियों से जीवन में सौभाग्य व अनहोनी (दुर्घटना, रोग, मानहानि) के योग बनते हैं।"
+                      : "Analysis of classical Vedic and Lal Kitab planetary combinations governing fortune and sudden obstacles."}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-xl bg-emerald-500/20 px-2.5 py-1 text-xs font-bold text-emerald-300 border border-emerald-500/30">
+                    {bundle.yogas.active_shubh_count} {isHindi ? "शुभ योग" : "Shubh Yogas"}
+                  </span>
+                  <span className="rounded-xl bg-rose-500/20 px-2.5 py-1 text-xs font-bold text-rose-300 border border-rose-500/30">
+                    {bundle.yogas.active_ashubh_count} {isHindi ? "दोष / अशुभ" : "Ashubh Doshas"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Section A: Inauspicious Yogas & Doshas */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-rose-400">
+                  <AlertTriangle className="h-4 w-4" />
+                  <span>{isHindi ? "अशुभ योग एवं दोष (सावधानी व शांति अनिवार्य)" : "Inauspicious Yogas & Doshas (Precautions & Upay)"}</span>
+                </div>
+                <div className="grid gap-3.5 sm:grid-cols-2">
+                  {bundle.yogas.ashubh?.map((y) => (
+                    <div
+                      key={y.id}
+                      className={`cosmic-card rounded-2xl p-4 text-xs space-y-2.5 transition border ${
+                        y.is_active
+                          ? "border-rose-500/50 bg-rose-950/20 shadow-lg"
+                          : "border-slate-800 bg-slate-900/60 opacity-75"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-white text-[13px]">{isHindi ? y.name_hi : y.name}</span>
+                        {y.is_active ? (
+                          <span className="rounded-full bg-rose-500/25 px-2 py-0.5 text-[10px] font-bold text-rose-300 flex items-center gap-1 border border-rose-500/40">
+                            <AlertTriangle className="h-3 w-3" /> {isHindi ? "सक्रिय दोष" : "Active Dosha"}
+                          </span>
+                        ) : (
+                          <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-400 flex items-center gap-1">
+                            <CheckCircle2 className="h-3 w-3" /> {isHindi ? "मुक्त" : "Absent"}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="text-[11px] text-slate-400">
+                        <strong className="text-slate-300">{isHindi ? "कारक ग्रह: " : "Planets: "}</strong>
+                        {y.planets?.join(" + ")} ·{" "}
+                        <span className="text-rose-300 font-semibold">{y.severity}</span>
+                      </div>
+
+                      <div className="rounded-xl bg-slate-950/40 p-2.5 space-y-0.5">
+                        <div className="text-[10px] uppercase font-bold text-slate-400">
+                          {isHindi ? "प्रभाव व संभावित अनहोनी" : "Manifestations & Life Impact"}
+                        </div>
+                        <p className="text-slate-200 text-[11px] leading-relaxed">
+                          {isHindi ? y.impact_hi : y.impact_en}
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-2.5 space-y-0.5">
+                        <div className="text-[10px] uppercase font-bold text-amber-300 tracking-wide flex items-center gap-1">
+                          <Sparkles className="h-3 w-3 text-amber-400" />
+                          {isHindi ? "निवारण लाल किताब उपाय" : "Lal Kitab Remedial Upay"}
+                        </div>
+                        <p className="text-slate-200 text-[11px] leading-relaxed font-medium">
+                          {isHindi ? y.upay_hi : y.upay_en}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Section B: Auspicious Yogas & Raj Yogas */}
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-400">
+                  <Sparkles className="h-4 w-4" />
+                  <span>{isHindi ? "शुभ योग एवं राजयोग (सौभाग्य व समृद्धि)" : "Auspicious Yogas & Raj Yogas (Blessings & Growth)"}</span>
+                </div>
+                <div className="grid gap-3.5 sm:grid-cols-2">
+                  {bundle.yogas.shubh?.map((y) => (
+                    <div
+                      key={y.id}
+                      className={`cosmic-card rounded-2xl p-4 text-xs space-y-2.5 transition border ${
+                        y.is_active
+                          ? "border-emerald-500/50 bg-emerald-950/20 shadow-lg"
+                          : "border-slate-800 bg-slate-900/60 opacity-75"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-white text-[13px]">{isHindi ? y.name_hi : y.name}</span>
+                        {y.is_active ? (
+                          <span className="rounded-full bg-emerald-500/25 px-2 py-0.5 text-[10px] font-bold text-emerald-300 flex items-center gap-1 border border-emerald-500/40">
+                            <CheckCircle2 className="h-3 w-3" /> {isHindi ? "सक्रिय योग" : "Active Yoga"}
+                          </span>
+                        ) : (
+                          <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] text-slate-400">
+                            {isHindi ? "अविद्यमान" : "Inactive"}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="text-[11px] text-slate-400">
+                        <strong className="text-slate-300">{isHindi ? "कारक ग्रह: " : "Planets: "}</strong>
+                        {y.planets?.join(" + ")} ·{" "}
+                        <span className="text-emerald-300 font-semibold">{y.category}</span>
+                      </div>
+
+                      <div className="rounded-xl bg-slate-950/40 p-2.5 space-y-0.5">
+                        <div className="text-[10px] uppercase font-bold text-slate-400">
+                          {isHindi ? "शुभ फल व जीवन उत्थान" : "Blessings & Positive Influence"}
+                        </div>
+                        <p className="text-slate-200 text-[11px] leading-relaxed">
+                          {isHindi ? y.impact_hi : y.impact_en}
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 p-2.5 space-y-0.5">
+                        <div className="text-[10px] uppercase font-bold text-emerald-300 tracking-wide flex items-center gap-1">
+                          <Sparkles className="h-3 w-3 text-emerald-400" />
+                          {isHindi ? "योग संवर्धन नियम / उपाय" : "Yoga Strengthening Upay"}
+                        </div>
+                        <p className="text-slate-200 text-[11px] leading-relaxed font-medium">
+                          {isHindi ? y.upay_hi : y.upay_en}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
         </div>

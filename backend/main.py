@@ -20,11 +20,16 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from backend.astro_engine import (
+    compute_category_dates,
+    compute_chart,
     compute_daily_horoscope_and_totka,
     compute_lal_kitab_debts,
     compute_life_events_timeline,
+    compute_luck_meter,
     compute_matchmaking,
     compute_panchang,
+    compute_personal_dayfal,
+    compute_shubh_ashubh_yogas,
     compute_varshphal_parhez,
     full_kundli_bundle,
     generate_kundli_pdf,
@@ -131,6 +136,18 @@ class KundliBundleReq(BaseModel):
     longitude: float = 77.2090
     tz_offset: float = 5.5
     target_year: int | None = None
+
+
+class CategoryDatesReq(BaseModel):
+    member_id: int | None = None
+    dob: str | None = None
+    birth_time: str | None = None
+    latitude: float = 28.6139
+    longitude: float = 77.2090
+    tz_offset: float = 5.5
+    category: str = "marriage"
+    start_date: str | None = None
+    days_ahead: int = 60
 
 
 class CategoryConsultReq(BaseModel):
@@ -928,7 +945,7 @@ def get_daily_horoscope(target_date: str | None = None):
 @app.get("/api/kundli/{member_id}/debts")
 def get_member_debts(member_id: int, account: dict[str, Any] = Depends(get_current_account)):
     with db_session() as conn:
-        m = conn.execute("SELECT * FROM members WHERE id=? AND account_id=?", (member_id, account["id"])).fetchone()
+        m = conn.execute("SELECT * FROM family_members WHERE id=? AND account_id=?", (member_id, account["id"])).fetchone()
     if not m:
         raise HTTPException(status_code=404, detail="Member profile not found.")
     bundle = full_kundli_bundle(dict(m))
@@ -938,11 +955,49 @@ def get_member_debts(member_id: int, account: dict[str, Any] = Depends(get_curre
 @app.get("/api/kundli/{member_id}/timeline")
 def get_member_timeline(member_id: int, account: dict[str, Any] = Depends(get_current_account)):
     with db_session() as conn:
-        m = conn.execute("SELECT * FROM members WHERE id=? AND account_id=?", (member_id, account["id"])).fetchone()
+        m = conn.execute("SELECT * FROM family_members WHERE id=? AND account_id=?", (member_id, account["id"])).fetchone()
     if not m:
         raise HTTPException(status_code=404, detail="Member profile not found.")
     bundle = full_kundli_bundle(dict(m))
     return {"member": dict(m), "life_events": bundle["life_events"]}
+
+
+@app.get("/api/kundli/{member_id}/dayfal")
+def get_member_dayfal(member_id: int, account: dict[str, Any] = Depends(get_current_account)):
+    with db_session() as conn:
+        m = conn.execute("SELECT * FROM family_members WHERE id=? AND account_id=?", (member_id, account["id"])).fetchone()
+    if not m:
+        raise HTTPException(status_code=404, detail="Member profile not found.")
+    row = dict(m)
+    chart = compute_chart(row["dob"], row["birth_time"], float(row["latitude"]), float(row["longitude"]), float(row.get("tz_offset", 5.5)))
+    return compute_personal_dayfal(chart)
+
+
+@app.get("/api/kundli/{member_id}/luck-meter")
+def get_member_luck_meter(member_id: int, account: dict[str, Any] = Depends(get_current_account)):
+    with db_session() as conn:
+        m = conn.execute("SELECT * FROM family_members WHERE id=? AND account_id=?", (member_id, account["id"])).fetchone()
+    if not m:
+        raise HTTPException(status_code=404, detail="Member profile not found.")
+    row = dict(m)
+    chart = compute_chart(row["dob"], row["birth_time"], float(row["latitude"]), float(row["longitude"]), float(row.get("tz_offset", 5.5)))
+    return compute_luck_meter(chart)
+
+
+@app.post("/api/kundli/category-dates")
+def get_category_dates(req: CategoryDatesReq, account: dict[str, Any] | None = Depends(get_optional_account)):
+    if req.member_id:
+        with db_session() as conn:
+            row = conn.execute("SELECT * FROM family_members WHERE id=?", (req.member_id,)).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Member profile not found.")
+        m = dict(row)
+        chart = compute_chart(m["dob"], m["birth_time"], float(m["latitude"]), float(m["longitude"]), float(m.get("tz_offset", 5.5)))
+    elif req.dob and req.birth_time:
+        chart = compute_chart(req.dob, req.birth_time, req.latitude, req.longitude, req.tz_offset)
+    else:
+        raise HTTPException(status_code=400, detail="member_id or dob/birth_time required.")
+    return compute_category_dates(chart, start_date=req.start_date, category=req.category, days_ahead=req.days_ahead)
 
 
 # ---------------------------------------------------------------------------

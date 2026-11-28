@@ -813,11 +813,11 @@ def full_kundli_bundle(member: dict[str, Any], target_year: int | None = None) -
             "is_current": sy <= cur_yr <= ey,
             "summary": f"Varshphal cycle for ages {age} to {age + 4}: focus on House {((age - 1) % 12) + 1} themes.",
         })
-    return {
+    raw_bundle = {
         "member": member,
         "chart": chart,
         "varshphal": varshphal,
-        "dashas": dashas,
+        "dashas": compute_bifurcated_dasha_predictions(dashas, member["dob"]),
         "ghar_predictions": houses_pred,
         "vivaran": vivaran,
         "age_ranges": age_ranges,
@@ -826,17 +826,11 @@ def full_kundli_bundle(member: dict[str, Any], target_year: int | None = None) -
         "parhez": compute_varshphal_parhez(varshphal, cur_yr - b_yr + 1),
         "clashes": compute_planetary_clashes(chart),
         "life_events": compute_life_events_timeline(chart, member["dob"], dashas),
-        "yogas": {
-            "shubh": [
-                f"{p['planet']} in {p['dignity']} state in House {p['house']} strengthens {chart['houses'][p['house']-1]['rashi']}."
-                for p in chart["planets"] if p["is_benefic"]
-            ],
-            "ashubh": [
-                f"{p['planet']} in House {p['house']} ({p['dignity']}) advises mindful Lal Kitab precautions."
-                for p in chart["planets"] if not p["is_benefic"]
-            ] or ["No severe planetary afflictions detected in natal placements."],
-        },
+        "yogas": compute_shubh_ashubh_yogas(chart),
+        "luck_meter": compute_luck_meter(chart),
+        "personal_dayfal": compute_personal_dayfal(chart),
     }
+    return raw_bundle
 
 
 def compute_matchmaking(
@@ -1657,4 +1651,777 @@ def compute_daily_horoscope_and_totka(target_date: str | None = None) -> dict[st
         "todays_totka_en": totka[0],
         "todays_totka_hi": totka[1],
         "zodiac_predictions": rashi_predictions,
+    }
+
+
+def compute_shubh_ashubh_yogas(chart: dict[str, Any]) -> dict[str, Any]:
+    """
+    Compute specific Shubh & Ashubh Yogas (शुभ एवं अशुभ योग) based on Classical & Lal Kitab rules:
+    - Inauspicious Yogas: Angarak Yog / Mangal Bad, Surya Grahan Yog, Chandra Grahan Yog,
+      Guru Chandal Yog, Vish Yog, Kemdrum Yog, Kaal Sarp Dosha, Shani-Mangal Dwandwa.
+    - Auspicious Yogas: Gajakesari Yog, Budhaditya Yog, Pancha Mahapurusha (Malavya, Ruchaka,
+      Hamsa, Bhadra, Sasa), Vipreet Raj Yog, Chandra-Mangal (Mahalaxmi) Yog.
+    """
+    planets = {p["planet"]: p for p in chart.get("planets", [])}
+    sun = planets.get("Sun", {})
+    moon = planets.get("Moon", {})
+    mars = planets.get("Mars", {})
+    merc = planets.get("Mercury", {})
+    jup = planets.get("Jupiter", {})
+    venus = planets.get("Venus", {})
+    sat = planets.get("Saturn", {})
+    rahu = planets.get("Rahu", {})
+    ketu = planets.get("Ketu", {})
+
+    sun_h = sun.get("house", 0)
+    moon_h = moon.get("house", 0)
+    mars_h = mars.get("house", 0)
+    merc_h = merc.get("house", 0)
+    jup_h = jup.get("house", 0)
+    ven_h = venus.get("house", 0)
+    sat_h = sat.get("house", 0)
+    rahu_h = rahu.get("house", 0)
+    ketu_h = ketu.get("house", 0)
+
+    shubh_list = []
+    ashubh_list = []
+
+    # --- 1. GAJAKESARI YOG ---
+    if moon_h > 0 and jup_h > 0:
+        dist = ((jup_h - moon_h) % 12)
+        is_gaja = dist in (0, 3, 6, 9)
+        shubh_list.append({
+            "id": "gajakesari",
+            "name": "Gajakesari Yoga",
+            "name_hi": "गजकेसरी योग (ज्ञान, मान-सम्मान व वैभव)",
+            "is_active": is_gaja,
+            "category": "Raj Yoga",
+            "planets": ["Moon", "Jupiter"],
+            "impact_en": "Jupiter in Kendra from Moon endows high wisdom, executive authority, academic distinction, and lasting goodwill.",
+            "impact_hi": "चंद्रमा से केंद्र (1, 4, 7, 10 भाव) में बृहस्पति होने से ज्ञान, उच्च पद, समाज में आदर और संकटों से स्वतः रक्षा का वरदान मिलता है।",
+            "upay_en": "Respect spiritual mentors, wear pure gold or saffron mark on forehead, feed soaked chana dal to cows on Thursdays.",
+            "upay_hi": "गुरुजनों का सम्मान करें, माथे पर केसर का तिलक लगाएं और गुरुवार को गाय को भीगी चने की दाल व गुड़ खिलाएं।"
+        })
+
+    # --- 2. BUDHADITYA YOG ---
+    if sun_h > 0 and merc_h > 0:
+        is_budh = sun_h == merc_h
+        shubh_list.append({
+            "id": "budhaditya",
+            "name": "Budhaditya Yoga",
+            "name_hi": "बुधादित्य योग (प्रखर बुद्धि व बौद्धिक ख्याति)",
+            "is_active": is_budh,
+            "category": "Intellectual Yoga",
+            "planets": ["Sun", "Mercury"],
+            "impact_en": "Sun and Mercury conjunction grants sharp analytical acumen, persuasive speech, commercial leadership, and academic success.",
+            "impact_hi": "सूर्य और बुध की युति से कुशाग्र बुद्धि, वाक्पटुता, व्यापारिक चातुर्य तथा प्रशासनिक व प्रतियोगी परीक्षाओं में विशेष सफलता मिलती है।",
+            "upay_en": "Offer fresh water in copper vessel at sunrise; maintain integrity in business accounts.",
+            "upay_hi": "प्रातः तांबे के पात्र से सूर्य को जल दें और व्यापारिक लेन-देन में पूर्ण पारदर्शिता रखें।"
+        })
+
+    # --- 3. PANCHA MAHAPURUSHA YOGAS ---
+    # Hamsa Yog (Jupiter)
+    is_hamsa = jup_h in (1, 4, 7, 10) and jup.get("dignity") in ("Exalted", "Own")
+    shubh_list.append({
+        "id": "hamsa",
+        "name": "Hamsa Yoga (Pancha Mahapurusha)",
+        "name_hi": "हंस महापुरुष योग (आध्यात्मिक श्रेष्ठता व उच्च पद)",
+        "is_active": is_hamsa,
+        "category": "Mahapurusha",
+        "planets": ["Jupiter"],
+        "impact_en": "Jupiter exalted or in own sign in Kendra bestows pure character, high philosophical insight, and patronage from rulers.",
+        "impact_hi": "गुरु के केंद्र में स्वराशि या उच्च होने से धर्मनिष्ठा, उच्च पद, सात्विक सुख और परिवार का कल्याण होता है।",
+        "upay_en": "Donate yellow cloths or books to deserving scholars; chant Guru Gayatri.",
+        "upay_hi": "पुस्तकों का दान करें और नियमित रूप से गुरु मंत्र अथवा गायत्री मंत्र का जप करें।"
+    })
+
+    # Malavya Yog (Venus)
+    is_malavya = ven_h in (1, 4, 7, 10) and venus.get("dignity") in ("Exalted", "Own")
+    shubh_list.append({
+        "id": "malavya",
+        "name": "Malavya Yoga (Pancha Mahapurusha)",
+        "name_hi": "मालव्य महापुरुष योग (ऐश्वर्य, कला व दांपत्य सुख)",
+        "is_active": is_malavya,
+        "category": "Mahapurusha",
+        "planets": ["Venus"],
+        "impact_en": "Venus in Kendra in own/exalted sign bestows aesthetic grace, material luxury, domestic comfort, and joyful marriage.",
+        "impact_hi": "शुक्र के केंद्र में स्वराशि या उच्च होने से वाहन, उत्तम वस्त्र, भौतिक वैभव, कलात्मक सफलता व सुखी दांपत्य प्राप्त होता है।",
+        "upay_en": "Feed white cows fresh dough; honor women and donate curd or silver in charity.",
+        "upay_hi": "सफेद गाय को पेड़ा या मक्खन-रोटी खिलाएं और घर की स्त्रियों का आदर करें।"
+    })
+
+    # Ruchaka Yog (Mars)
+    is_ruchaka = mars_h in (1, 4, 7, 10) and mars.get("dignity") in ("Exalted", "Own")
+    shubh_list.append({
+        "id": "ruchaka",
+        "name": "Ruchaka Yoga (Pancha Mahapurusha)",
+        "name_hi": "रुचक महापुरुष योग (शौर्य, नेतृत्व व भूमि लाभ)",
+        "is_active": is_ruchaka,
+        "category": "Mahapurusha",
+        "planets": ["Mars"],
+        "impact_en": "Exalted/Own Mars in Kendra gives physical courage, land ownership, leadership in engineering/armed forces, and victory over foes.",
+        "impact_hi": "मंगल के केंद्र में स्वराशि या उच्च होने से अदम्य साहस, भूमि-भवन का लाभ, नेतृत्व क्षमता व शत्रुओं पर विजय मिलती है।",
+        "upay_en": "Recite Hanuman Chalisa daily; share sweet delicacies with younger brothers.",
+        "upay_hi": "नित्य हनुमान चालीसा का पाठ करें और छोटे भाइयों के साथ सौहार्दपूर्ण संबंध रखें।"
+    })
+
+    # --- 4. CHANDRA-MANGAL (MAHALAXMI) YOG ---
+    is_chandra_mangal = (moon_h > 0 and mars_h > 0) and (moon_h == mars_h or abs(moon_h - mars_h) == 6)
+    shubh_list.append({
+        "id": "chandra_mangal",
+        "name": "Chandra-Mangal Mahalaxmi Yoga",
+        "name_hi": "चंद्र-मंगल महालक्ष्मी योग (प्रचुर धन संचय व उद्यम)",
+        "is_active": is_chandra_mangal,
+        "category": "Dhana Yoga",
+        "planets": ["Moon", "Mars"],
+        "impact_en": "Conjunction or mutual opposition of Moon and Mars fuels persistent commercial drive, property acquisition, and steady liquidity.",
+        "impact_hi": "चंद्र-मंगल का संबंध प्रचुर धन लाभ, अचल संपत्ति और व्यापारिक उद्यम में अप्रत्याशित वित्तीय सफलता देता है।",
+        "upay_en": "Keep pure silver coin with saffron mark in cash safe; avoid emotional rashness in investments.",
+        "upay_hi": "तिजोरी में चांदी का चौकोर टुकड़ा रखें और वित्तीय निर्णयों में जल्दबाजी से बचें।"
+    })
+
+    # --- ASHUBH YOGAS ---
+    # 1. ANGARAK YOG / MANGAL BAD
+    is_angarak = (mars_h > 0 and rahu_h > 0 and (mars_h == rahu_h or abs(mars_h - rahu_h) == 6)) or \
+                 (mars_h > 0 and ketu_h > 0 and (mars_h == ketu_h or abs(mars_h - ketu_h) == 6)) or \
+                 (mars_h in (3, 8) and sat_h in (6, 8))
+    ashubh_list.append({
+        "id": "angarak",
+        "name": "Angarak Yoga / Mangal Bad",
+        "name_hi": "अंगारक योग / मंगल बद (रक्त विकार, चोट व विवाद)",
+        "is_active": is_angarak,
+        "severity": "High Caution (तीव्र)",
+        "planets": ["Mars", "Rahu", "Ketu"],
+        "impact_en": "Volatile Mars-Rahu/Ketu interaction triggers sudden fits of rage, vehicle mishaps, blood/skin flare-ups, and abrupt police or litigation friction.",
+        "impact_hi": "मंगल और राहु/केतु की युति अथवा दृष्टि से अत्यधिक क्रोध, वाहन से चोट, रक्त विकार, अग्नि भय तथा व्यर्थ के पुलिस/कोर्ट केस का भय रहता है।",
+        "upay_en": "Lal Kitab: Fill an earthen pot with pure honey and bury in solitary ground; bake sweet tandoori rotis and feed stray dogs; never wear coral without consultation.",
+        "upay_hi": "मिट्टी के कुल्हड़ में शुद्ध शहद भरकर वीराने में दबाएं; तंदूर की मीठी रोटी बनाकर भूरे/काले कुत्तों को खिलाएं और क्रोध पर नियंत्रण रखें।"
+    })
+
+    # 2. SURYA GRAHAN YOG
+    is_surya_grahan = sun_h > 0 and (sun_h == rahu_h or sun_h == ketu_h)
+    ashubh_list.append({
+        "id": "surya_grahan",
+        "name": "Surya Grahan Yoga (Sun Eclipsed)",
+        "name_hi": "सूर्य ग्रहण योग (पिता को कष्ट, नेत्र विकार व अपयश)",
+        "is_active": is_surya_grahan,
+        "severity": "High Caution (तीव्र)",
+        "planets": ["Sun", "Rahu", "Ketu"],
+        "impact_en": "Sun eclipsed by nodal axis compromises career stability, strains relationship with father/superiors, and triggers eye or cardiovascular sensitivity.",
+        "impact_hi": "सूर्य के साथ राहु या केतु होने से पिता के स्वास्थ्य पर कष्ट, सरकारी कार्यों में रुकावट, नेत्र विकार और अकारण मानहानि या बदनामी का भय रहता है।",
+        "upay_en": "Lal Kitab: Flow raw coal or dry coconut with husk in flowing river on Sunday; apply sandalwood paste on forehead; maintain cordial conduct with father.",
+        "upay_hi": "रविवार के दिन बहते पानी में नारियल अथवा कच्चा कोयला प्रवाहित करें; पिता के चरण स्पर्श करें और माठे पर सफेद चंदन लगाएं।"
+    })
+
+    # 3. CHANDRA GRAHAN YOG
+    is_chandra_grahan = moon_h > 0 and (moon_h == rahu_h or moon_h == ketu_h)
+    ashubh_list.append({
+        "id": "chandra_grahan",
+        "name": "Chandra Grahan Yoga (Moon Eclipsed)",
+        "name_hi": "चंद्र ग्रहण योग (मानसिक अवसाद, चिंता व माता को कष्ट)",
+        "is_active": is_chandra_grahan,
+        "severity": "High Caution (तीव्र)",
+        "planets": ["Moon", "Rahu", "Ketu"],
+        "impact_en": "Afflicted Moon induces recurrent mental anxiety, depressive phases, emotional vulnerability, insomnia, and distress to mother.",
+        "impact_hi": "चंद्रमा के साथ राहु/केतु होने से अनिद्रा, गहरा मानसिक तनाव, भय, माता के स्वास्थ्य में गिरावट और आर्थिक अस्थिरता पैदा होती है।",
+        "upay_en": "Lal Kitab: Keep a solid silver ball (without hole) in pocket; take blessings from mother by touching her feet daily; avoid consuming milk at night.",
+        "upay_hi": "बिना छेद वाली ठोस चांदी की गोली जेब में रखें; माता के चरण स्पर्श कर आशीर्वाद लें और रात में दूध पीने से परहेज करें।"
+    })
+
+    # 4. GURU CHANDAL YOG
+    is_chandal = jup_h > 0 and (jup_h == rahu_h or jup_h == ketu_h)
+    ashubh_list.append({
+        "id": "guru_chandal",
+        "name": "Guru Chandal Yoga",
+        "name_hi": "गुरु-चांडाल योग (मार्गभ्रष्टता, ज्ञान बाधा व अपमान)",
+        "is_active": is_chandal,
+        "severity": "Medium Caution (मध्यम)",
+        "planets": ["Jupiter", "Rahu", "Ketu"],
+        "impact_en": "Jupiter tainted by Rahu clouds moral clarity, creates estrangement from mentors, disrupts liver/digestion, and delays spiritual progress.",
+        "impact_hi": "बृहस्पति पर राहु का साया निर्णय क्षमता को भटकाता है, गुरुजनों से मतभेद कराता है, पाचन विकार देता है और धार्मिक निष्ठा में व्यवधान डालता है।",
+        "upay_en": "Lal Kitab: Apply yellow saffron or turmeric tilak on forehead, throat, and navel daily; donate yellow chana dal at an ancient temple; respect spiritual guides.",
+        "upay_hi": "माथे, कंठ व नाभि पर नित्य केसर या हल्दी का तिलक लगाएं; मंदिर में चने की दाल अर्पित करें और संतों/विद्वानों का अपमान भूलकर न करें।"
+    })
+
+    # 5. VISH YOG (SATURN + MOON)
+    is_vish = (moon_h > 0 and sat_h > 0) and (moon_h == sat_h or abs(moon_h - sat_h) == 6)
+    ashubh_list.append({
+        "id": "vish_yog",
+        "name": "Vish Yoga (Saturn-Moon Conjunction / Aspect)",
+        "name_hi": "विष योग (उदासीनता, एकाकीपन व अवसाद)",
+        "is_active": is_vish,
+        "severity": "High Caution (तीव्र)",
+        "planets": ["Moon", "Saturn"],
+        "impact_en": "Saturn constricting Moon produces chronic melancholy, pessimism, marital alienation, delayed rewards, and cold emotional temperament.",
+        "impact_hi": "शनि-चंद्र का संयोग मन में अकारण उदासी, निराशा, काम में विलंब, वैवाहिक संबंधों में ठंडापन और अकेलेपन की भावना उत्पन्न करता है।",
+        "upay_en": "Lal Kitab: Pour fresh milk mixed with water and black sesame on Shivling on Mondays/Saturdays; feed water to crows and avoid wearing dark blue near sleeping area.",
+        "upay_hi": "सोमवार व शनिवार को शिवलिंग पर कच्चे दूध में थोड़ा जल व काले तिल मिलाकर अभिषेक करें; कौवों को मीठी रोटी खिलाएं।"
+    })
+
+    # 6. KEMDRUM YOG
+    # Moon isolated: no planets in 2nd and 12th from Moon (excluding Sun, Rahu, Ketu)
+    h_before = ((moon_h - 2) % 12) + 1
+    h_after = (moon_h % 12) + 1
+    occupants_around = [
+        p["planet"] for p in chart.get("planets", [])
+        if p.get("house") in (h_before, h_after) and p["planet"] not in ("Sun", "Rahu", "Ketu", "Moon")
+    ]
+    is_kemdrum = (moon_h > 0) and len(occupants_around) == 0
+    ashubh_list.append({
+        "id": "kemdrum",
+        "name": "Kemdrum Yoga (Isolated Moon)",
+        "name_hi": "केमद्रुम योग (एकाकी चंद्रमा, आर्थिक अस्थिरता)",
+        "is_active": is_kemdrum,
+        "severity": "Medium Caution (मध्यम)",
+        "planets": ["Moon"],
+        "impact_en": "Lack of flanking support around Moon results in periods of sudden financial drain, lack of true loyalists, and feeling mentally unanchored.",
+        "impact_hi": "चंद्रमा के आगे-पीछे कोई शुभ ग्रह न होने से अचानक धन हानि, कठिन समय में मित्रों का सहयोग न मिलना और मानसिक असहायता का अनुभव होता है।",
+        "upay_en": "Lal Kitab: Keep a solid silver miniature elephant in home; plant a Peepal tree in public park; worship Goddess Mahalakshmi with white flowers.",
+        "upay_hi": "घर में ठोस चांदी का छोटा हाथी रखें; पूर्णिमा के दिन खीर बनाकर मां लक्ष्मी को भोग लगाएं और पीपल का पौधा लगवाएं।"
+    })
+
+    # 7. KAAL SARP DOSHA
+    # Check if all planets from Sun to Saturn are trapped between Rahu & Ketu
+    non_nodal_houses = [
+        p.get("house") for p in chart.get("planets", [])
+        if p["planet"] not in ("Rahu", "Ketu") and p.get("house")
+    ]
+    is_kaalsarp = False
+    if rahu_h > 0 and ketu_h > 0 and len(non_nodal_houses) >= 7:
+        span_1 = [(rahu_h + i - 1) % 12 + 1 for i in range(1, 6)]
+        span_2 = [(ketu_h + i - 1) % 12 + 1 for i in range(1, 6)]
+        if all(h in span_1 for h in non_nodal_houses) or all(h in span_2 for h in non_nodal_houses):
+            is_kaalsarp = True
+
+    ashubh_list.append({
+        "id": "kaalsarp",
+        "name": "Kaal Sarp Dosha",
+        "name_hi": "कालसर्प दोष (कार्यों में अप्रत्याशित रुकावटें व संघर्ष)",
+        "is_active": is_kaalsarp,
+        "severity": "High Caution (तीव्र)",
+        "planets": ["Rahu", "Ketu"],
+        "impact_en": "All planets hemmed between nodes creates recurring cyclic plateaus, sudden derailment of ongoing deals, and sleep disturbances.",
+        "impact_hi": "समस्त ग्रहों के राहु-केतु के मध्य आने से जीवन में संघर्ष, बनते हुए कार्यों का अंतिम समय में अटकना और सर्प भय या बेचैनी का योग बनता है।",
+        "upay_en": "Lal Kitab: Float a pair of silver snakes (Naag-Nagin) in flowing water on Nag Panchami; chant Maha Mrityunjaya Japa daily.",
+        "upay_hi": "बहते जल में चांदी के नाग-नागिन का जोड़ा प्रवाहित करें और नित्य 11 बार महामृत्युंजय मंत्र का मानसिक जप करें।"
+    })
+
+    return {
+        "shubh": shubh_list,
+        "ashubh": ashubh_list,
+        "active_shubh_count": len([y for y in shubh_list if y["is_active"]]),
+        "active_ashubh_count": len([y for y in ashubh_list if y["is_active"]]),
+    }
+
+
+def compute_bifurcated_dasha_predictions(dashas: dict[str, Any], dob: str) -> dict[str, Any]:
+    """
+    Bifurcate Dasha Predictions into:
+    1. Childhood Dasha (उम्र 0 से 12 वर्ष): Balarishta, dental/bone health, mother's milk/health,
+       schooling, speech, evil eye (नजर दोष) and child-safe remedies.
+    2. Adult Dasha (उम्र 12+ वर्ष): Career, earnings, marriage, legal affairs, property, adult Lal Kitab remedies.
+    """
+    b_year = int(dob.split("-")[0])
+
+    child_guidelines = {
+        "Sun": {
+            "child_hi": "बाल्यावस्था में सूर्य की दशा में हड्डियों, आंखों व रोग प्रतिरोधक क्षमता का ध्यान रखें। पिता का आशीर्वाद व प्रातः की धूप बालक के स्वास्थ्य के लिए अत्यंत लाभकारी है।",
+            "child_en": "Focus on bone density, vision, and natural immunity. Morning solar exposure and paternal affection strengthen child's constitution.",
+            "child_upay_hi": "बालक को तांबे का छल्ला पहनाएं व मीठा जल अर्पित करें।",
+            "child_upay_en": "Have child wear a simple copper bangle and offer sweetened water to rising Sun.",
+        },
+        "Moon": {
+            "child_hi": "चंद्रमा की दशा बाल्यावस्था में माता के स्वास्थ्य, दूध व कफ/जुकाम की संवेदनशीलता को दर्शाती है। बालक को मानसिक स्नेह दें व रात्रि में ठंडा आहार न दें।",
+            "child_en": "Signifies maternal bonding, lactation, and respiratory sensitivity. Provide warm emotional security and avoid chilled foods at night.",
+            "child_upay_hi": "चांदी के तार में पिरोया मोती बालक के गले में पहनाएं।",
+            "child_upay_en": "Tie a natural pearl in silver wire around child's neck.",
+        },
+        "Mars": {
+            "child_hi": "मंगल की दशा में बालक में अत्यधिक चंचलता, चोट-मोच व पित्त विकार का योग रहता है। नुकीली वस्तुओं व ऊंचाई से सावधानी रखें।",
+            "child_en": "High physical restlessness, vulnerability to scrapes/falls, and thermal imbalances. Supervise playtime and keep sharp objects safely away.",
+            "child_upay_hi": "मंगलवार को बालक के हाथ से मीठी रोटी या गुड़ का दान कराएं।",
+            "child_upay_en": "Donate sweet jaggery or rotis through child's hands on Tuesdays.",
+        },
+        "Mercury": {
+            "child_hi": "बुध की दशा बालक की वाणी, स्मरण शक्ति, प्रारंभिक अक्षराभ्यास व त्वचा स्वास्थ्य को प्रभावित करती है। संगीत व चित्रों से शिक्षा दें।",
+            "child_en": "Influences early vocal articulation, memory absorption, foundational schooling, and skin comfort. Encourage interactive visual learning.",
+            "child_upay_hi": "बालक के गले में तांबे का छेद वाला गोल पैसा पहनाएं।",
+            "child_upay_en": "Have child wear a perforated copper coin around neck on Wednesday.",
+        },
+        "Jupiter": {
+            "child_hi": "गुरु की दशा बाल्यावस्था में संस्कार, बुद्धि, गुरुजनों का स्नेह और पेट की सुदृढ़ता के लिए अत्यंत कल्याणकारी मानी जाती है।",
+            "child_en": "Highly auspicious for character foundation, digestive well-being, blessings from elders, and joyful intellectual curiosity.",
+            "child_upay_hi": "बालक के माथे पर नित्य केसर-चंदन का सात्विक तिलक लगाएं।",
+            "child_upay_en": "Apply a mild saffron or sandalwood dot on child's forehead daily.",
+        },
+        "Venus": {
+            "child_hi": "शुक्र की दशा में बालक का स्वभाव कोमल, सौंदर्यप्रिय और कलात्मक रहता है। त्वचा की स्वच्छता और गले के स्वास्थ्य का ध्यान रखें।",
+            "child_en": "Reflects artistic inclination, charm, and sensitivity to throat/skin. Keep child's clothing pristine and encourage creative play.",
+            "child_upay_hi": "गाय को बालक के स्पर्श से पेड़ा या हरा चारा दिलवाएं।",
+            "child_upay_en": "Feed sweet dough to a cow after touching child's palms on Friday.",
+        },
+        "Saturn": {
+            "child_hi": "शनि की दशा में बाल्यावस्था में दांत निकलने में कष्ट, पैरों में दर्द या नजर दोष की संभावना रहती है। बालक को अंधेरे से दूर रखें।",
+            "child_en": "Possible teething delays, lower limb stiffness, or susceptibility to startled night fears. Ensure brightly lit, serene bedroom environment.",
+            "child_upay_hi": "शनिवार को बालक के सिर से 7 बार बादाम या सरसों का तेल वारकर दान करें।",
+            "child_upay_en": "Circulate mustard oil or almonds over child's head 7 times and donate on Saturday.",
+        },
+        "Rahu": {
+            "child_hi": "राहु की दशा में बालक को अचानक डर, बुरे सपने, पेट में गैस/कीड़े या नजर लगने का भय रहता है। बालक के सिरहाने लोहे का सामान न रखें।",
+            "child_en": "Startled night awakenings, sudden gastrointestinal discomfort, or evil eye. Never place electronic gadgets or metallic clutter near crib.",
+            "child_upay_hi": "चांदी का ठोस कड़ा बालक के दाहिने हाथ में पहनाएं व मोरपंख पास रखें।",
+            "child_upay_en": "Place a peacock feather near bed and have child wear a solid silver bracelet.",
+        },
+        "Ketu": {
+            "child_hi": "केतु की दशा में बालक के कान, पैरों के पंजे व जोड़ों की संवेदनशीलता रहती है। बालक को प्यार से समझाएं और जिद पर अंकुश रखें।",
+            "child_en": "Sensitivity around ears, feet, and joints. Nurture with patient, gentle reassurance and avoid harsh scolding.",
+            "child_upay_hi": "काले-सफेद कंबल या तिल का दान बालक के हाथ से कराएं।",
+            "child_upay_en": "Donate a two-tone black/white blanket or sesame seeds touched by child.",
+        },
+    }
+
+    enhanced_mahadashas = []
+    for md in dashas.get("mahadashas", []):
+        pl = md.get("planet", "Sun")
+        start_yr = int(md.get("start", dob).split("-")[0])
+        end_yr = int(md.get("end", dob).split("-")[0])
+        start_age = max(0, start_yr - b_year)
+        end_age = max(0, end_yr - b_year)
+
+        c_info = child_guidelines.get(pl, child_guidelines["Sun"])
+
+        enhanced_md = dict(md)
+        enhanced_md["start_age"] = start_age
+        enhanced_md["end_age"] = end_age
+        enhanced_md["is_childhood_dasha"] = start_age < 12
+        enhanced_md["child_prediction_hi"] = c_info["child_hi"]
+        enhanced_md["child_prediction_en"] = c_info["child_en"]
+        enhanced_md["child_upay_hi"] = c_info["child_upay_hi"]
+        enhanced_md["child_upay_en"] = c_info["child_upay_en"]
+
+        # Adult predictions focus on career, wealth, family and health
+        enhanced_md["adult_prediction_hi"] = f"आयु {start_age} से {end_age} वर्ष: {md.get('planet_hi', pl)} की महादशा में कार्यक्षेत्र, धन लाभ, सामाजिक प्रतिष्ठा और दांपत्य जीवन में महत्वपूर्ण बदलाव का समय रहेगा। इस दौरान परिश्रम से सफलता और निर्णय क्षमता में परिपक्वता आएगी।"
+        enhanced_md["adult_prediction_en"] = f"Age {start_age} to {end_age}: {pl} Mahadasha governs professional milestones, financial liquidity, marriage/family establishment, and strategic life decisions."
+
+        enhanced_mahadashas.append(enhanced_md)
+
+    dashas_copy = dict(dashas)
+    dashas_copy["mahadashas"] = enhanced_mahadashas
+    return dashas_copy
+
+
+def compute_luck_meter(chart: dict[str, Any]) -> dict[str, Any]:
+    """
+    Compute 4-Pillar Luck Meter (भाग्य मीटर प्रतिशत स्कोर):
+    1. Health Luck % (स्वास्थ्य भाग्यांक)
+    2. Wealth & Business Luck % (धन व व्यापार भाग्यांक)
+    3. Family & Domestic Luck % (पारिवारिक सुख भाग्यांक)
+    4. Career & Authority Luck % (करियर व मान-सम्मान भाग्यांक)
+    Calculated mathematically from planet dignities and house strengths (range: 40% - 98%).
+    """
+    planets = {p["planet"]: p for p in chart.get("planets", [])}
+    sun = planets.get("Sun", {})
+    moon = planets.get("Moon", {})
+    mars = planets.get("Mars", {})
+    merc = planets.get("Mercury", {})
+    jup = planets.get("Jupiter", {})
+    venus = planets.get("Venus", {})
+    sat = planets.get("Saturn", {})
+
+    dignity_weights = {
+        "Exalted": 30,
+        "Own": 25,
+        "Friendly": 18,
+        "Neutral": 12,
+        "Enemy": 6,
+        "Debilitated": 2,
+    }
+
+    # 1. Health Luck: Sun + Mars + Ascendant Lord + House 1 occupants
+    h_score = 45 + dignity_weights.get(sun.get("dignity"), 12) + dignity_weights.get(mars.get("dignity"), 12)
+    if sun.get("house") in (1, 5, 9, 10): h_score += 10
+    if mars.get("house") in (1, 3, 6, 10): h_score += 8
+    health_luck = min(98, max(42, h_score))
+
+    # 2. Wealth Luck: Jupiter + Venus + 2nd & 11th House
+    w_score = 45 + dignity_weights.get(jup.get("dignity"), 12) + dignity_weights.get(venus.get("dignity"), 12)
+    if jup.get("house") in (1, 2, 5, 9, 11): w_score += 10
+    if venus.get("house") in (2, 4, 7, 11, 12): w_score += 8
+    wealth_luck = min(98, max(40, w_score))
+
+    # 3. Family Luck: Moon + Venus + 4th & 7th House
+    f_score = 46 + dignity_weights.get(moon.get("dignity"), 12) + dignity_weights.get(venus.get("dignity"), 12)
+    if moon.get("house") in (1, 4, 5, 7, 9): f_score += 9
+    if venus.get("house") in (1, 4, 7): f_score += 8
+    family_luck = min(98, max(44, f_score))
+
+    # 4. Career Luck: Sun + Saturn + Mercury + 10th & 9th House
+    c_score = 44 + dignity_weights.get(sun.get("dignity"), 12) + dignity_weights.get(sat.get("dignity"), 12)
+    if sat.get("house") in (3, 6, 10, 11): c_score += 10
+    if merc.get("house") in (1, 5, 10, 11): c_score += 8
+    career_luck = min(98, max(42, c_score))
+
+    overall = round((health_luck + wealth_luck + family_luck + career_luck) / 4.0)
+
+    pillars = [
+        {"key": "health", "title_en": "Health & Vitality", "title_hi": "स्वास्थ्य व जीवनी शक्ति", "score": health_luck},
+        {"key": "wealth", "title_en": "Wealth & Finances", "title_hi": "धन व आर्थिक समृद्धि", "score": wealth_luck},
+        {"key": "family", "title_en": "Family & Relationships", "title_hi": "पारिवारिक सुख व दांपत्य", "score": family_luck},
+        {"key": "career", "title_en": "Career & Authority", "title_hi": "कार्यक्षेत्र व मान-सम्मान", "score": career_luck},
+    ]
+
+    strongest = max(pillars, key=lambda x: x["score"])
+    weakest = min(pillars, key=lambda x: x["score"])
+
+    booster_upays = {
+        "health": ("Offer copper water to Sun and walk barefoot on green grass.", "प्रातः तांबे के पात्र से सूर्य को जल दें और नंगे पैर हरी घास पर चलें।"),
+        "wealth": ("Keep a square silver piece in wallet and feed green fodder to cows.", "पर्स में चांदी का चौकोर टुकड़ा रखें और गाय को हरा चारा खिलाएं।"),
+        "family": ("Respect elder women, touch mother's feet daily, and avoid milk at night.", "माता के नित्य चरण स्पर्श करें और घर में कटु शब्दों के प्रयोग से बचें।"),
+        "career": ("Feed soaked almonds to birds, donate black sesame on Saturday, and maintain strict discipline.", "पक्षियों को भीगे बादाम खिलाएं और शनिवार को सरसों के तेल का छायापात्र दान करें।"),
+    }
+
+    upay = booster_upays[weakest["key"]]
+
+    return {
+        "overall_luck": overall,
+        "health_luck": health_luck,
+        "wealth_luck": wealth_luck,
+        "family_luck": family_luck,
+        "career_luck": career_luck,
+        "pillars": pillars,
+        "strongest_pillar": strongest,
+        "focus_pillar": weakest,
+        "daily_booster_en": upay[0],
+        "daily_booster_hi": upay[1],
+    }
+
+
+def compute_personal_dayfal(chart: dict[str, Any], target_date: str = None) -> dict[str, Any]:
+    """
+    Compute Personalized DayFal (व्यक्तिगत दैनिक फल) based on Native's Natal Moon (Chandra Rashi)
+    vs Current Transit Moon (गोचर चंद्रमा 1 से 12 भाव).
+    """
+    dt = datetime.strptime(target_date, "%Y-%m-%d").date() if target_date else date.today()
+    jd_now = swe.julday(dt.year, dt.month, dt.day, 12.0) - 5.5 / 24.0
+
+    # Calculate Current Transit Moon
+    res_moon, _ = swe.calc_ut(jd_now, swe.MOON, CALC_FLAGS)
+    transit_moon_lon = res_moon[0] % 360.0
+    transit_sign_idx = int(transit_moon_lon // 30)
+
+    # Find Native's Natal Moon Sign
+    natal_moon = next((p for p in chart.get("planets", []) if p["planet"] == "Moon"), None)
+    if natal_moon:
+        natal_sign_idx = int(natal_moon.get("lon", 0.0) // 30)
+    else:
+        natal_sign_idx = 0
+
+    # Relative house from natal Moon (1 to 12)
+    house_from_moon = ((transit_sign_idx - natal_sign_idx) % 12) + 1
+
+    rashi_names_en = ["Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo", "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"]
+    rashi_names_hi = ["मेष", "वृषभ", "मिथुन", "कर्क", "सिंह", "कन्या", "तुला", "वृश्चिक", "धनु", "मकर", "कुंभ", "मीन"]
+
+    transit_rashi_en = rashi_names_en[transit_sign_idx]
+    transit_rashi_hi = rashi_names_hi[transit_sign_idx]
+
+    natal_rashi_en = rashi_names_en[natal_sign_idx]
+    natal_rashi_hi = rashi_names_hi[natal_sign_idx]
+
+    # Classical Chandra Gochar impacts (Phaladeepika & Lal Kitab)
+    gochar_profiles = {
+        1: {
+            "rating": "अति शुभ (Very Auspicious)", "stars": 5, "type": "Good",
+            "title_hi": "जन्म चंद्र गोचर — आत्मबल, सम्मान व शारीरिक सुख",
+            "title_en": "1st House Transit: Mental Radiance & Vitality",
+            "pred_hi": "आज चंद्रमा आपकी ही राशि में गोचरस्थ है। मन प्रसन्न, विचार स्पष्ट और वाणी में प्रभाव रहेगा। उत्तम भोजन, नए वस्त्र व सामाजिक सम्मान का योग है।",
+            "pred_en": "Moon transits your natal sign. Clear thoughts, elevated vitality, pleasant social interactions, and mental equilibrium.",
+            "dos_hi": ["नए कार्य का संकल्प लें", "सात्विक व सुपाच्य भोजन करें", "माता या गुरु का आशीर्वाद लें"],
+            "dos_en": ["Initiate thoughtful plans", "Wear clean, light clothing", "Take maternal blessings"],
+            "donts_hi": ["अति-उत्साह में बिना सोचे धन खर्च न करें", "अहंकार से बचें"],
+            "donts_en": ["Avoid impulsive splurges", "Do not engage in ego clashes"],
+            "lucky_color_hi": "मोतिया सफेद", "lucky_color_en": "Pearl White", "lucky_number": 2,
+        },
+        2: {
+            "rating": "मध्यम (Caution on Expenses)", "stars": 3, "type": "Neutral",
+            "title_hi": "द्वितीय भाव गोचर — वित्तीय सावधानी व वाणी संयम",
+            "title_en": "2nd House Transit: Financial & Speech Prudence",
+            "pred_hi": "धन के आवागमन में थोड़ी तेजी रहेगी लेकिन अनावश्यक खर्चे भी सामने आएंगे। पारिवारिक बातचीत में कठोर शब्दों से बचें।",
+            "pred_en": "Transit through 2nd house advises measured speech and conscious budgeting. Postpone speculative bets.",
+            "dos_hi": ["घर का बजट संभलकर बनाएं", "मीठी वाणी बोलें", "गाय को रोटी दें"],
+            "dos_en": ["Review weekly budget", "Speak gently in family meetings", "Feed birds"],
+            "donts_hi": ["उधार देने या लेने से बचें", "कटु वचन न बोलें"],
+            "donts_en": ["Avoid lending money today", "Do not argue over meals"],
+            "lucky_color_hi": "पीला", "lucky_color_en": "Soft Yellow", "lucky_number": 3,
+        },
+        3: {
+            "rating": "उत्तम (Highly Favorable)", "stars": 5, "type": "Good",
+            "title_hi": "तृतीय भाव गोचर — पराक्रम, साहस व बंधु सहयोग",
+            "title_en": "3rd House Transit: Courage, Drive & Sibling Support",
+            "pred_hi": "तृतीय भाव में चंद्रमा अत्यंत शुभ फल देता है। आपके आत्मविश्वास में वृद्धि होगी। मित्रों और सहयोगियों से पूर्ण सहायता मिलेगी। छोटी यात्राएं लाभकारी रहेंगी।",
+            "pred_en": "Moon in 3rd creates tremendous courage, productive communications, and cheerful support from colleagues and siblings.",
+            "dos_hi": ["रुके हुए जरूरी कॉल्स व ईमेल पूर्ण करें", "सहयोगियों की सहायता लें", "हनुमान चालीसा पढ़ें"],
+            "dos_en": ["Finalize pending correspondence", "Engage in physical workouts", "Plan local visits"],
+            "donts_hi": ["छोटे भाई-बहनों से मतभेद न करें", "आलस्य में समय न गंवाएं"],
+            "donts_en": ["Avoid procrastination", "Do not neglect minor details"],
+            "lucky_color_hi": "लाल / केसरिया", "lucky_color_en": "Crimson Saffron", "lucky_number": 9,
+        },
+        4: {
+            "rating": "सावधानी (Mental Restlessness)", "stars": 2, "type": "Caution",
+            "title_hi": "चतुर्थ भाव गोचर — मानसिक अशांति व वाहन सावधानी",
+            "title_en": "4th House Transit: Domestic Caution & Emotional Calm",
+            "pred_hi": "चतुर्थ चंद्र गोचर मन को थोड़ा अशांत या भावुक कर सकता है। माता के स्वास्थ्य का ध्यान रखें। वाहन चलाते समय गति पर नियंत्रण रखें।",
+            "pred_en": "4th house Moon requires emotional patience and vehicle safety. Keep domestic atmosphere calm.",
+            "dos_hi": ["शांत एकांत में 10 मिनट ध्यान लगाएं", "माता के चरण स्पर्श करें", "पानी खूब पिएं"],
+            "dos_en": ["Meditate in quietude", "Prioritize home hygiene", "Check vehicle air pressure"],
+            "donts_hi": ["वाहन तेज न चलाएं", "घर में वाद-विवाद से बचें"],
+            "donts_en": ["Do not speed on roads", "Avoid domestic altercations"],
+            "lucky_color_hi": "चांदी सा सफेद", "lucky_color_en": "Silver White", "lucky_number": 4,
+        },
+        5: {
+            "rating": "मध्यम शुभ (Creative & Studious)", "stars": 4, "type": "Good",
+            "title_hi": "पंचम भाव गोचर — बुद्धि, रचनात्मकता व विद्या",
+            "title_en": "5th House Transit: Intellectual Insight & Creativity",
+            "pred_hi": "बौद्धिक कार्यों, पढ़ाई, कला और योजना बनाने के लिए दिन उत्तम है। संतान की ओर से प्रसन्नता मिलेगी। शेयर बाजार में जल्दबाजी से बचें।",
+            "pred_en": "Sparks sharp intuition, academic focus, and creative expression. Favorable for consultations and studies.",
+            "dos_hi": ["नई पुस्तक या ज्ञानवर्धक लेख पढ़ें", "रचनात्मक कार्य में समय दें", "गायत्री मंत्र जपें"],
+            "dos_en": ["Study strategy documents", "Express artistic hobbies", "Spend time with children"],
+            "donts_hi": ["सट्टेबाजी या जुए से पूर्णतः दूर रहें", "अधीर न हों"],
+            "donts_en": ["Avoid speculative risks", "Do not jump to emotional conclusions"],
+            "lucky_color_hi": "हरा", "lucky_color_en": "Emerald Green", "lucky_number": 5,
+        },
+        6: {
+            "rating": "अति शुभ (Victory over Obstacles)", "stars": 5, "type": "Good",
+            "title_hi": "षष्ठ भाव गोचर — शत्रु विजय, रोग मुक्ति व कार्य सिद्धि",
+            "title_en": "6th House Transit: Triumph Over Roadblocks & Health Gain",
+            "pred_hi": "छठे भाव का चंद्रमा शत्रुओं को परास्त करता है और पुरानी उलझनों को सुलझाता है। स्वास्थ्य में सुधार होगा और ऋण मुक्ति के मार्ग बनेंगे।",
+            "pred_en": "6th house Moon is an exceptional transit for clearing backlog, overcoming competitors, and health rejuvenation.",
+            "dos_hi": ["लंबित कार्य प्राथमिकता से निपटाएं", "शारीरिक व्यायाम करें", "चींटियों को आटा दें"],
+            "dos_en": ["Tackle hard tasks first", "Maintain clean workspace", "Exercise outdoors"],
+            "donts_hi": ["किसी से व्यर्थ विवाद में न उलझें", "अनियमित भोजन न करें"],
+            "donts_en": ["Avoid arguing with service staff", "Do not skip healthy lunch"],
+            "lucky_color_hi": "नीला", "lucky_color_en": "Steel Blue", "lucky_number": 8,
+        },
+        7: {
+            "rating": "शुभ (Partnership & Harmony)", "stars": 4, "type": "Good",
+            "title_hi": "सप्तम भाव गोचर — दांपत्य सौहार्द, साझेदारी व व्यापार लाभ",
+            "title_en": "7th House Transit: Matrimonial Bliss & Public Relations",
+            "pred_hi": "जीवनसाथी और व्यापारिक साझेदारों के साथ संबंध मधुर रहेंगे। सार्वजनिक जीवन में आपके सुझावों की सराहना होगी। शाम को सुखद समय बीतेगा।",
+            "pred_en": "Harmonious transit for marital understanding, joint business dialogue, and evening social interactions.",
+            "dos_hi": ["जीवनसाथी के साथ समय बिताएं", "साझेदारी के नियमों की समीक्षा करें", "सुगंधित इत्र लगाएं"],
+            "dos_en": ["Plan pleasant evening dinner", "Align on shared goals", "Wear gentle fragrance"],
+            "donts_hi": ["संदेह या ईर्ष्या को मन में न आने दें"],
+            "donts_en": ["Avoid unwarranted jealousy or suspicion"],
+            "lucky_color_hi": "गुलाबी", "lucky_color_en": "Pastel Pink", "lucky_number": 6,
+        },
+        8: {
+            "rating": "विशेष सावधानी (Chandra Ashtama / Alert)", "stars": 1, "type": "Caution",
+            "title_hi": "अष्टम भाव गोचर (चंद्र अष्टम) — अत्यधिक सतर्कता व शांति",
+            "title_en": "8th House Transit (Chandra Ashtama): Strict Vigilance",
+            "pred_hi": "चंद्रमा का अष्टम गोचर शास्त्रीय दृष्टि से 'चंद्र अष्टम' कहलाता है। आज कोई नया अनुबंध, बड़ा निवेश या लंबी यात्रा टालें। शांत रहकर नियमित कार्य करें।",
+            "pred_en": "Chandra Ashtama window: delay high-stakes signatures, avoid major investments, drive cautiously, and recite Shiva chants.",
+            "dos_hi": ["शिवलिंग पर जल चढ़ाएं", "नियमित शांत दिनचर्या रखें", "ॐ नमः शिवाय का जप करें"],
+            "dos_en": ["Recite Om Namah Shivaya", "Maintain calm routine", "Postpone risky negotiations"],
+            "donts_hi": ["नया व्यापार आरंभ न करें", "बड़ा धन निवेश न करें", "क्रोध व यात्रा से बचें"],
+            "donts_en": ["Do not sign big contracts", "Avoid late-night driving", "Keep temper cool"],
+            "lucky_color_hi": "सफेद", "lucky_color_en": "Pure White", "lucky_number": 2,
+        },
+        9: {
+            "rating": "अति शुभ (Fortune & Dharma)", "stars": 5, "type": "Good",
+            "title_hi": "नवम भाव गोचर — भाग्योदय, धार्मिक रुचि व बड़ों का आशीष",
+            "title_en": "9th House Transit: Fortune, Dharma & Mentor Guidance",
+            "pred_hi": "भाग्य का पूर्ण साथ मिलेगा। अटके हुए कार्य स्वतः गति पकड़ेंगे। धार्मिक यात्रा, मंदिर दर्शन अथवा उच्च अधिकारियों से भेंट फलदायी रहेगी।",
+            "pred_en": "High fortune transit; spiritual elevation, auspicious mentor counsel, and serendipitous breakthroughs in pending ventures.",
+            "dos_hi": ["धार्मिक स्थल पर दर्शन करें", "पिता या गुरु का आशीर्वाद लें", "पीले वस्त्र पहनें"],
+            "dos_en": ["Visit temple or meditation spot", "Seek senior guidance", "Wear pleasant yellow/gold"],
+            "donts_hi": ["बड़ों के विचारों की अवहेलना न करें", "अधर्म के मार्ग पर न चलें"],
+            "donts_en": ["Do not dismiss mentor advice", "Avoid shortcuts in ethics"],
+            "lucky_color_hi": "सुनहरा पीला", "lucky_color_en": "Golden Yellow", "lucky_number": 3,
+        },
+        10: {
+            "rating": "अति शुभ (Career Triumph)", "stars": 5, "type": "Good",
+            "title_hi": "दशम भाव गोचर — कार्यक्षेत्र में मान-सम्मान व प्रभाव",
+            "title_en": "10th House Transit: Professional Prestige & Leadership",
+            "pred_hi": "कार्यक्षेत्र में आपके काम की प्रशंसा होगी। अधिकारियों व ग्राहकों का विश्वास बढ़ेगा। नई जिम्मेदारी मिलने का शुभ योग है।",
+            "pred_en": "Elevates professional standing, executive decisions, and leadership respect. Outstanding for business meetings.",
+            "dos_hi": ["महत्वपूर्ण प्रोजेक्ट्स को आगे बढ़ाएं", "नेतृत्व की जिम्मेदारी स्वीकारें", "सूर्य को प्रणाम करें"],
+            "dos_en": ["Present proposals proactively", "Take leadership ownership", "Maintain impeccable posture"],
+            "donts_hi": ["सहकर्मियों के प्रति कठोर न बनें", "अभिमान से दूर रहें"],
+            "donts_en": ["Do not act condescending", "Avoid slackness in deliverables"],
+            "lucky_color_hi": "केसरिया", "lucky_color_en": "Bright Saffron", "lucky_number": 1,
+        },
+        11: {
+            "rating": "सर्वोत्तम (Maximum Financial Gain)", "stars": 5, "type": "Good",
+            "title_hi": "एकादश भाव गोचर — प्रचुर लाभ, मनोकामना पूर्ति व मित्र मिलन",
+            "title_en": "11th House Transit: Bountiful Gains & Wish Fulfillment",
+            "pred_hi": "एकादश भाव का चंद्रमा सर्वसिद्धिदायक है। आर्थिक लाभ के नए मार्ग खुलेंगे। मित्रों का सहयोग मिलेगा और कोई पुरानी मनोकामना पूरी होगी।",
+            "pred_en": "Prime wealth and networking transit. Realizes long-sought goals, unlocks fresh revenues, and brings joyful celebrations.",
+            "dos_hi": ["व्यापारिक सौदों को अंतिम रूप दें", "मित्रों के साथ समय बिताएं", "आभार प्रकट करें"],
+            "dos_en": ["Close commercial transactions", "Network with supportive allies", "Practice gratitude"],
+            "donts_hi": ["आय से अधिक दिखावे में खर्च न करें"],
+            "donts_en": ["Avoid ostentatious bragging"],
+            "lucky_color_hi": "आसमानी नीला", "lucky_color_en": "Sky Blue", "lucky_number": 11,
+        },
+        12: {
+            "rating": "सावधानी (Expenditure & Travel)", "stars": 2, "type": "Caution",
+            "title_hi": "द्वादश भाव गोचर — अनपेक्षित व्यय, नेत्र थकान व विश्राम",
+            "title_en": "12th House Transit: Higher Expenses & Rest Needed",
+            "pred_hi": "अनावश्यक खर्चों और मानसिक थकान का दिन है। आंखों को आराम दें और समय पर सोएं। किसी विदेशी या दूरस्थ संपर्क से सामान्य लाभ संभव है।",
+            "pred_en": "Expenditure spikes and sleep disruption possible. Prioritize restorative rest, avoid retail therapy, and meditate before bed.",
+            "dos_hi": ["समय पर विश्राम करें", "जरूरतमंदों को भोजन या दवा का दान करें", "पानी में थोड़ा गुलाब जल डालकर स्नान करें"],
+            "dos_en": ["Sleep early and deeply", "Donate food or medicine", "Keep screen time low in evening"],
+            "donts_hi": ["दिखावे में अनाप-शनाप खरीदारी न करें", "देर रात तक न जागें"],
+            "donts_en": ["Do not engage in binge shopping", "Avoid staying up past midnight"],
+            "lucky_color_hi": "हल्का जामुनी", "lucky_color_en": "Lavender", "lucky_number": 7,
+        },
+    }
+
+    info = gochar_profiles.get(house_from_moon, gochar_profiles[1])
+
+    return {
+        "date": dt.strftime("%Y-%m-%d"),
+        "weekday": dt.strftime("%A"),
+        "natal_rashi_en": natal_rashi_en,
+        "natal_rashi_hi": natal_rashi_hi,
+        "transit_rashi_en": transit_rashi_en,
+        "transit_rashi_hi": transit_rashi_hi,
+        "house_from_moon": house_from_moon,
+        "rating": info["rating"],
+        "stars": info["stars"],
+        "type": info["type"],
+        "title_hi": info["title_hi"],
+        "title_en": info["title_en"],
+        "pred_hi": info["pred_hi"],
+        "pred_en": info["pred_en"],
+        "dos_hi": info["dos_hi"],
+        "dos_en": info["dos_en"],
+        "donts_hi": info["donts_hi"],
+        "donts_en": info["donts_en"],
+        "lucky_color_hi": info["lucky_color_hi"],
+        "lucky_color_en": info["lucky_color_en"],
+        "lucky_number": info["lucky_number"],
+    }
+
+
+def compute_category_dates(
+    chart: dict[str, Any],
+    start_date: str = None,
+    category: str = "marriage",
+    days_ahead: int = 60
+) -> dict[str, Any]:
+    """
+    Find Category-wise Auspicious (Shubh) & Inauspicious (Varjit) Dates:
+    Categories:
+    - 'marriage': विवाह व सगाई
+    - 'business': नवीन व्यापार व दुकान आरंभ
+    - 'property': मकान/भूमि रजिस्ट्री व गृह प्रवेश
+    - 'vehicle': वाहन क्रय (कार/बाइक)
+    - 'surgery': सर्जरी व ऑपरेशन
+    Evaluates Chandra Gochar (avoiding 8th/12th), Tithi (avoiding Rikta: 4, 9, 14, Amavasya),
+    and weekday alignments.
+    """
+    st = datetime.strptime(start_date, "%Y-%m-%d").date() if start_date else date.today()
+    natal_moon = next((p for p in chart.get("planets", []) if p["planet"] == "Moon"), None)
+    natal_sign_idx = int(natal_moon.get("lon", 0.0) // 30) if natal_moon else 0
+
+    category_titles = {
+        "marriage": {"hi": "विवाह व सगाई संस्कार", "en": "Marriage & Betrothal"},
+        "business": {"hi": "नवीन व्यापार व प्रतिष्ठान आरंभ", "en": "New Business & Shop Inauguration"},
+        "property": {"hi": "मकान/भूमि रजिस्ट्री व गृह प्रवेश", "en": "Property Registry & Griha Pravesh"},
+        "vehicle": {"hi": "वाहन क्रय (कार/बाइक)", "en": "Vehicle Purchase (Car / Bike)"},
+        "surgery": {"hi": "चिकित्सा प्रक्रिया व सर्जरी", "en": "Medical Operation & Surgery"},
+    }
+
+    t_info = category_titles.get(category, category_titles["marriage"])
+
+    shubh_dates = []
+    varjit_dates = []
+
+    for day_offset in range(days_ahead):
+        cur_dt = st + timedelta(days=day_offset)
+        jd_noon = swe.julday(cur_dt.year, cur_dt.month, cur_dt.day, 12.0) - 5.5 / 24.0
+
+        res_sun, _ = swe.calc_ut(jd_noon, swe.SUN, CALC_FLAGS)
+        res_moon, _ = swe.calc_ut(jd_noon, swe.MOON, CALC_FLAGS)
+
+        sun_lon = res_sun[0] % 360.0
+        moon_lon = res_moon[0] % 360.0
+
+        transit_sign = int(moon_lon // 30)
+        house_from_moon = ((transit_sign - natal_sign_idx) % 12) + 1
+
+        tithi_idx = int(((moon_lon - sun_lon) % 360.0) // 12.0) + 1
+        tithi_in_paksha = tithi_idx if tithi_idx <= 15 else tithi_idx - 15
+        is_rikta = tithi_in_paksha in (4, 9, 14)
+        is_amavasya = tithi_idx == 30
+        weekday_idx = cur_dt.weekday() # 0 = Monday, 1 = Tuesday ... 6 = Sunday
+
+        date_str = cur_dt.strftime("%Y-%m-%d")
+        day_str = cur_dt.strftime("%A")
+
+        # Inauspicious rules
+        is_bad = False
+        bad_reasons_hi = []
+        bad_reasons_en = []
+
+        if house_from_moon == 8:
+            is_bad = True
+            bad_reasons_hi.append("चंद्र अष्टम (कुंडली अनुसार निषेध)")
+            bad_reasons_en.append("Chandra Ashtama (Inauspicious 8th Moon)")
+        elif house_from_moon == 12:
+            is_bad = True
+            bad_reasons_hi.append("चंद्र द्वादश (हानि व व्यय योग)")
+            bad_reasons_en.append("Chandra 12th (High Expense/Drain)")
+
+        if is_rikta:
+            is_bad = True
+            bad_reasons_hi.append(f"रिक्ता तिथि (तिथि #{tithi_in_paksha})")
+            bad_reasons_en.append(f"Rikta Tithi (#{tithi_in_paksha})")
+
+        if is_amavasya:
+            is_bad = True
+            bad_reasons_hi.append("अमावस्या (शुभ कार्यों के लिए वर्जित)")
+            bad_reasons_en.append("Amavasya (Forbidden for auspicious deeds)")
+
+        # Specific category rules
+        if category == "marriage" and weekday_idx == 1: # Tuesday
+            is_bad = True
+            bad_reasons_hi.append("मंगलवार (विवाह के लिए वर्जित)")
+            bad_reasons_en.append("Tuesday (Avoid for Wedding)")
+        elif category == "property" and weekday_idx in (1, 5): # Tuesday & Saturday
+            is_bad = True
+            bad_reasons_hi.append("मंगलवार/शनिवार गृह प्रवेश में त्याज्य")
+            bad_reasons_en.append("Avoid Tue/Sat for Griha Pravesh")
+        elif category == "surgery" and (tithi_idx in (15, 30) or house_from_moon in (8, 12)):
+            is_bad = True
+            bad_reasons_hi.append("पूर्णिमा/अमावस्या या चंद्र अष्टम में सर्जरी वर्जित")
+            bad_reasons_en.append("Full/New Moon surgery forbidden")
+
+        if is_bad:
+            if len(varjit_dates) < 15:
+                varjit_dates.append({
+                    "date": date_str,
+                    "weekday": day_str,
+                    "reason_hi": " · ".join(bad_reasons_hi),
+                    "reason_en": " · ".join(bad_reasons_en),
+                })
+        else:
+            # Good date
+            if house_from_moon in (1, 3, 5, 7, 9, 10, 11) and not is_rikta and len(shubh_dates) < 15:
+                shubh_dates.append({
+                    "date": date_str,
+                    "weekday": day_str,
+                    "muhurat_time": "प्रातः 07:30 से 10:45 तक (अमृत/शुभ)",
+                    "reason_hi": f"चंद्रमा {house_from_moon}वें भाव में अनुकूल · शुभ तिथि",
+                    "reason_en": f"Moon in favorable {house_from_moon}th house · Auspicious Tithi",
+                })
+
+    return {
+        "category": category,
+        "title_hi": t_info["hi"],
+        "title_en": t_info["en"],
+        "shubh_dates": shubh_dates,
+        "varjit_dates": varjit_dates,
+        "total_shubh": len(shubh_dates),
+        "total_varjit": len(varjit_dates),
     }

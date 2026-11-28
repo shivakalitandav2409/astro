@@ -6,7 +6,8 @@ import OrderTrackingModal from "../../components/OrderTrackingModal";
 import ProductReviewsModal from "../../components/ProductReviewsModal";
 
 export default function ShopCartPage() {
-  const { account, refreshAccountState, setPlayingAudio, demoLogin, showToast } = useApp();
+  const { account, refreshAccountState, setPlayingAudio, demoLogin, showToast, lang } = useApp();
+  const isHindi = lang === "हिं";
   const [products, setProducts] = useState([]);
   const [filterType, setFilterType] = useState("all");
   const [cart, setCart] = useState({ items: [], subtotal: 0, reward_credits: 0 });
@@ -162,18 +163,22 @@ export default function ShopCartPage() {
       {/* Store Filters */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-extrabold text-white">Astro Remedies, Kits, Puja & Free Mantras</h1>
-          <p className="text-xs text-slate-400">Free Bhajans/Mantras stream directly in browser WAV audio without purchase.</p>
+          <h1 className="text-xl font-extrabold text-white">
+            {isHindi ? "एस्ट्रो उपाय, सिद्ध यंत्र, कल्याणकारी पूजा व निशुल्क मंत्र" : "Astro Remedies, Kits, Puja & Free Mantras"}
+          </h1>
+          <p className="text-xs text-slate-400">
+            {isHindi ? "निशुल्क वैदिक मंत्र व भजन सीधे इन-ब्राउज़र ऑडियो में सुनें।" : "Free Bhajans/Mantras stream directly in browser WAV audio without purchase."}
+          </p>
         </div>
         <div className="flex flex-wrap gap-2 text-xs">
           {[
-            { id: "all", label: "All" },
-            { id: "remedy", label: "Remedies & Yantras" },
-            { id: "book", label: "Lal Kitab Books" },
-            { id: "kit", label: "Kundli Files" },
-            { id: "service", label: "Kalyankari Puja" },
-            { id: "bhajan", label: "Free Bhajans" },
-            { id: "mantra", label: "Free Mantras" },
+            { id: "all", label_en: "All", label_hi: "सभी (All)" },
+            { id: "remedy", label_en: "Remedies & Yantras", label_hi: "उपाय व सिद्ध यंत्र" },
+            { id: "book", label_en: "Lal Kitab Books", label_hi: "लाल किताब पुस्तकें" },
+            { id: "kit", label_en: "Kundli Files", label_hi: "कुंडली पैकेज" },
+            { id: "service", label_en: "Kalyankari Puja", label_hi: "कल्याणकारी पूजा" },
+            { id: "bhajan", label_en: "Free Bhajans", label_hi: "निशुल्क भजन" },
+            { id: "mantra", label_en: "Free Mantras", label_hi: "निशुल्क वैदिक मंत्र" },
           ].map((f) => (
             <button
               key={f.id}
@@ -183,11 +188,45 @@ export default function ShopCartPage() {
                 filterType === f.id ? "bg-amber-500 text-slate-950" : "border border-slate-700 text-slate-300"
               }`}
             >
-              {f.label}
+              {isHindi ? f.label_hi : f.label_en}
             </button>
           ))}
         </div>
       </div>
+
+      {/* Guest / Unauthenticated Demo Banner with Live BlueDart Tracking Demo */}
+      {!account && (
+        <div className="rounded-2xl border border-amber-500/40 bg-gradient-to-r from-amber-950/30 via-slate-900/60 to-purple-950/30 p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4">
+          <div className="space-y-1">
+            <span className="rounded-md bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-300 uppercase">
+              {isHindi ? "डेमो मोड सक्रिय" : "Live Demo Mode"}
+            </span>
+            <h3 className="text-sm font-bold text-white">
+              {isHindi ? "तुरंत डेमो लॉगिन करें या 4-चरणीय ब्लू डार्ट लाइव ट्रैकिंग का परीक्षण करें" : "Try Instant Demo Login or test the 4-Step BlueDart Live Order Tracking"}
+            </h3>
+            <p className="text-xs text-slate-400">
+              {isHindi ? "डेमो खाता में ₹250 एस्ट्रो कॉइन्स, कार्ट एवं पूर्व ऑर्डर उपलब्ध हैं।" : "Demo account comes preloaded with ₹250 reward coins, active cart, and orders."}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => setTrackingOrderId("demo")}
+              className="flex items-center gap-1.5 rounded-xl border border-emerald-500/40 bg-emerald-500/15 px-3.5 py-2 text-xs font-bold text-emerald-300 hover:bg-emerald-500/25 transition"
+            >
+              <Truck className="h-4 w-4" />
+              <span>{isHindi ? "लाइव कूरियर ट्रैकिंग देखें (Track Demo)" : "Test BlueDart Tracker"}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => demoLogin("consumer@astro.local")}
+              className="gold-btn rounded-xl px-4 py-2 text-xs font-bold shadow-md"
+            >
+              {isHindi ? "1-क्लिक डेमो लॉगिन (Login as Demo)" : "1-Click Demo Login"}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Product Grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -214,20 +253,24 @@ export default function ShopCartPage() {
                     ))}
                   </div>
                   <span className="font-bold">5.0</span>
-                  <span className="text-slate-400">(Customer Reviews →)</span>
+                  <span className="text-slate-400">
+                    {isHindi ? "(ग्राहक समीक्षाएं व रेटिंग →)" : "(Customer Reviews →)"}
+                  </span>
                 </button>
               )}
             </div>
             <div className="flex items-center justify-between border-t border-slate-800 pt-3">
               {p.is_audio ? (
                 <>
-                  <span className="font-bold text-emerald-400">FREE DEVOTIONAL AUDIO</span>
+                  <span className="font-bold text-emerald-400">
+                    {isHindi ? "निशुल्क भक्ति ऑडियो" : "FREE DEVOTIONAL AUDIO"}
+                  </span>
                   <button
                     type="button"
                     onClick={() => setPlayingAudio({ title: p.title, url: `/api/audio/${p.id}.wav` })}
                     className="flex items-center gap-1.5 rounded-xl bg-emerald-500/20 px-3 py-1.5 font-bold text-emerald-300 hover:bg-emerald-500/30"
                   >
-                    <Volume2 className="h-3.5 w-3.5" /> Listen Now
+                    <Volume2 className="h-3.5 w-3.5" /> {isHindi ? "अभी सुनें" : "Listen Now"}
                   </button>
                 </>
               ) : (
@@ -241,7 +284,7 @@ export default function ShopCartPage() {
                     onClick={() => addToCart(p.id)}
                     className="gold-btn flex items-center gap-1 rounded-xl px-3.5 py-1.5"
                   >
-                    <ShoppingBag className="h-3.5 w-3.5" /> Add
+                    <ShoppingBag className="h-3.5 w-3.5" /> {isHindi ? "कार्ट में जोड़ें" : "Add"}
                   </button>
                 </>
               )}
@@ -254,9 +297,13 @@ export default function ShopCartPage() {
       {account && (
         <div className="grid gap-6 lg:grid-cols-12 text-xs">
           <div className="lg:col-span-6 cosmic-card rounded-2xl p-5 space-y-4">
-            <h2 className="text-base font-bold text-white">Your Cart & Sandbox Checkout</h2>
+            <h2 className="text-base font-bold text-white">
+              {isHindi ? "आपकी कार्ट एवं चेकआउट" : "Your Cart & Sandbox Checkout"}
+            </h2>
             {cart.items.length === 0 ? (
-              <p className="text-slate-400">Cart is empty. Add any Yantra, Book, or Puja above.</p>
+              <p className="text-slate-400">
+                {isHindi ? "कार्ट खाली है। ऊपर से कोई भी यंत्र, पुस्तक या पूजा जोड़ें।" : "Cart is empty. Add any Yantra, Book, or Puja above."}
+              </p>
             ) : (
               <>
                 <div className="space-y-2">
@@ -264,7 +311,9 @@ export default function ShopCartPage() {
                     <div key={it.cart_id} className="flex items-center justify-between rounded-lg bg-slate-900/70 px-3 py-2">
                       <div>
                         <div className="font-semibold text-white">{it.title}</div>
-                        <div className="text-slate-400">Qty: {it.quantity} × ₹{it.price}</div>
+                        <div className="text-slate-400">
+                          {isHindi ? `मात्रा: ${it.quantity} × ₹${it.price}` : `Qty: ${it.quantity} × ₹${it.price}`}
+                        </div>
                       </div>
                       <button onClick={() => removeCartItem(it.cart_id)} className="text-slate-400 hover:text-rose-400">
                         <Trash2 className="h-4 w-4" />
@@ -273,31 +322,42 @@ export default function ShopCartPage() {
                   ))}
                 </div>
                 <div className="flex gap-2">
-                  <input value={couponCode} onChange={(e) => setCouponCode(e.target.value)} className="flex-1 rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-white" />
+                  <input
+                    value={couponCode}
+                    onChange={(e) => setCouponCode(e.target.value)}
+                    placeholder="कूपन कोड"
+                    className="flex-1 rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-white"
+                  />
                   <button type="button" onClick={handleApplyCoupon} className="rounded-lg border border-amber-500/40 px-3 py-1.5 font-semibold text-amber-300">
-                    Apply Coupon
+                    {isHindi ? "कूपन लागू करें" : "Apply Coupon"}
                   </button>
                 </div>
                 <label className="flex items-center gap-2 text-slate-300">
                   <input type="checkbox" disabled={maxRedeemable === 0} checked={useCredits && maxRedeemable > 0} onChange={(e) => setUseCredits(e.target.checked)} />
-                  <span>Redeem {maxRedeemable} Cosmic Reward Credits (-₹{maxRedeemable}) · Available: ₹{account.credits_balance}</span>
+                  <span>
+                    {isHindi
+                      ? `${maxRedeemable} एस्ट्रो कॉइन्स रिडीम करें (-₹${maxRedeemable}) · उपलब्ध: ₹${account.credits_balance}`
+                      : `Redeem ${maxRedeemable} Cosmic Reward Credits (-₹${maxRedeemable}) · Available: ₹${account.credits_balance}`}
+                  </span>
                 </label>
                 <div className="border-t border-slate-800 pt-3 flex items-center justify-between font-bold text-sm">
-                  <span>Payable Total:</span>
+                  <span>{isHindi ? "कुल देय राशि:" : "Payable Total:"}</span>
                   <span className="text-amber-400">₹{Math.max(0, cart.subtotal - discountAmt - (useCredits ? maxRedeemable : 0))}</span>
                 </div>
                 <button type="button" onClick={checkoutCart} className="gold-btn w-full rounded-xl py-2.5">
-                  Proceed to Razorpay Test Checkout
+                  {isHindi ? "चेकआउट व भुगतान आगे बढ़ाएं" : "Proceed to Razorpay Test Checkout"}
                 </button>
               </>
             )}
 
             {pendingOrder && (
               <div className="rounded-xl border border-emerald-500/40 bg-emerald-950/20 p-4 space-y-2">
-                <div className="font-bold text-emerald-300">Confirm Simulated Payment: {pendingOrder.order_number}</div>
-                <div>Amount: ₹{pendingOrder.total_amount}</div>
+                <div className="font-bold text-emerald-300">
+                  {isHindi ? `भुगतान पुष्टिकरण: ${pendingOrder.order_number}` : `Confirm Simulated Payment: ${pendingOrder.order_number}`}
+                </div>
+                <div>{isHindi ? `राशि: ₹${pendingOrder.total_amount}` : `Amount: ₹${pendingOrder.total_amount}`}</div>
                 <button type="button" onClick={confirmPayment} className="gold-btn rounded-xl px-4 py-2">
-                  Complete Test Payment
+                  {isHindi ? "भुगतान पूर्ण करें (Complete Payment)" : "Complete Test Payment"}
                 </button>
               </div>
             )}
@@ -307,25 +367,28 @@ export default function ShopCartPage() {
           <div className="lg:col-span-6 space-y-6">
             <form onSubmit={saveAddress} className="cosmic-card rounded-2xl p-5 space-y-3">
               <h2 className="text-base font-bold text-white flex items-center gap-1.5">
-                <MapPin className="h-4 w-4 text-amber-400" /> Delivery Address (PIN Autofill)
+                <MapPin className="h-4 w-4 text-amber-400" />
+                {isHindi ? "डिलीवरी पता (पिन कोड ऑटो-फिल)" : "Delivery Address (PIN Autofill)"}
               </h2>
               <div className="grid grid-cols-2 gap-2">
-                <input placeholder="Full Name" value={addrForm.full_name} onChange={(e) => setAddrForm({ ...addrForm, full_name: e.target.value })} className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-white" />
-                <input placeholder="PIN e.g. 110064" value={addrForm.pincode} onBlur={handlePincodeBlur} onChange={(e) => setAddrForm({ ...addrForm, pincode: e.target.value })} className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-white" />
+                <input placeholder={isHindi ? "पूरा नाम" : "Full Name"} value={addrForm.full_name} onChange={(e) => setAddrForm({ ...addrForm, full_name: e.target.value })} className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-white" />
+                <input placeholder={isHindi ? "पिन कोड (जैसे 110064)" : "PIN e.g. 110064"} value={addrForm.pincode} onBlur={handlePincodeBlur} onChange={(e) => setAddrForm({ ...addrForm, pincode: e.target.value })} className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-white" />
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <input placeholder="City" value={addrForm.city} onChange={(e) => setAddrForm({ ...addrForm, city: e.target.value })} className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-white" />
-                <input placeholder="State" value={addrForm.state} onChange={(e) => setAddrForm({ ...addrForm, state: e.target.value })} className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-white" />
+                <input placeholder={isHindi ? "शहर" : "City"} value={addrForm.city} onChange={(e) => setAddrForm({ ...addrForm, city: e.target.value })} className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-white" />
+                <input placeholder={isHindi ? "राज्य" : "State"} value={addrForm.state} onChange={(e) => setAddrForm({ ...addrForm, state: e.target.value })} className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-white" />
               </div>
               <button type="submit" className="rounded-lg border border-slate-700 px-4 py-1.5 text-amber-300 hover:border-amber-400">
-                Save Address ({addresses.length} stored)
+                {isHindi ? `पता सहेजें (${addresses.length} सुरक्षित)` : `Save Address (${addresses.length} stored)`}
               </button>
             </form>
 
             <div className="cosmic-card rounded-2xl p-5 space-y-3">
-              <h2 className="text-base font-bold text-white">Order History & Tax Invoices</h2>
+              <h2 className="text-base font-bold text-white">
+                {isHindi ? "ऑर्डर इतिहास एवं टैक्स इनवॉइस" : "Order History & Tax Invoices"}
+              </h2>
               {orders.length === 0 ? (
-                <p className="text-slate-400">No orders placed yet.</p>
+                <p className="text-slate-400">{isHindi ? "अभी तक कोई ऑर्डर नहीं मिला।" : "No orders placed yet."}</p>
               ) : (
                 orders.map((o) => (
                   <div key={o.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-900/70 px-3 py-2">
@@ -340,7 +403,7 @@ export default function ShopCartPage() {
                           onClick={() => cancelShopOrder(o.id)}
                           className="rounded border border-rose-500/40 px-2 py-1 text-rose-300 hover:bg-rose-500/10"
                         >
-                          Cancel
+                          {isHindi ? "रद्द करें" : "Cancel"}
                         </button>
                       )}
                       {o.payment_status === "Paid" && (
@@ -349,7 +412,7 @@ export default function ShopCartPage() {
                           onClick={() => setTrackingOrderId(o.id)}
                           className="flex items-center gap-1 rounded border border-emerald-500/40 bg-emerald-500/15 px-2.5 py-1 text-emerald-300 hover:bg-emerald-500/25 transition"
                         >
-                          <Truck className="h-3.5 w-3.5" /> Track
+                          <Truck className="h-3.5 w-3.5" /> {isHindi ? "लाइव ट्रैक" : "Track"}
                         </button>
                       )}
                       <button
@@ -357,7 +420,7 @@ export default function ShopCartPage() {
                         onClick={() => downloadInvoice(o.id, o.order_number)}
                         className="flex items-center gap-1 rounded border border-amber-500/40 px-2.5 py-1 text-amber-300"
                       >
-                        <Download className="h-3.5 w-3.5" /> Invoice PDF
+                        <Download className="h-3.5 w-3.5" /> {isHindi ? "इनवॉइस PDF" : "Invoice PDF"}
                       </button>
                     </div>
                   </div>
@@ -373,7 +436,7 @@ export default function ShopCartPage() {
         <OrderTrackingModal
           orderId={trackingOrderId}
           onClose={() => setTrackingOrderId(null)}
-          isHindi={account?.language === "Hi"}
+          isHindi={isHindi}
         />
       )}
 
@@ -382,7 +445,7 @@ export default function ShopCartPage() {
         <ProductReviewsModal
           product={selectedReviewProduct}
           onClose={() => setSelectedReviewProduct(null)}
-          isHindi={account?.language === "Hi"}
+          isHindi={isHindi}
         />
       )}
     </div>

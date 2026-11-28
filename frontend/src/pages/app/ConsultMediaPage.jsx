@@ -216,7 +216,7 @@ export default function ConsultMediaPage() {
 
       {/* Credits, Notifications & FAQs + Feedback */}
       <div className="grid gap-6 md:grid-cols-3">
-        {account && (
+        {account ? (
           <div className="cosmic-card rounded-2xl p-5 space-y-3">
             <div className="flex items-center justify-between border-b border-slate-800 pb-2">
               <h3 className="font-bold text-amber-300 flex items-center gap-1.5">
@@ -247,6 +247,37 @@ export default function ConsultMediaPage() {
                 </div>
               ))}
             </div>
+          </div>
+        ) : (
+          <div className="cosmic-card rounded-2xl p-5 space-y-3 border border-amber-500/30">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+              <h3 className="font-bold text-amber-300 flex items-center gap-1.5">
+                <Coins className="h-4 w-4 text-amber-400" /> एस्ट्रो कॉइन्स (Astro Coins Wallet)
+              </h3>
+              <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-300">
+                100 Coins = ₹50
+              </span>
+            </div>
+            <div className="rounded-xl border border-amber-500/30 bg-amber-950/20 p-3 flex items-center justify-between">
+              <div>
+                <span className="text-[10px] text-slate-400 block uppercase font-bold">स्वागत बोनस (Welcome Bonus)</span>
+                <span className="text-lg font-black text-amber-300">250 कॉइन्स</span>
+              </div>
+              <div className="text-right">
+                <span className="text-[10px] text-slate-400 block uppercase font-bold">डिस्काउंट मूल्य</span>
+                <span className="text-sm font-bold text-emerald-400">≈ ₹125</span>
+              </div>
+            </div>
+            <p className="text-[11px] text-slate-300">
+              प्रत्येक नई कुंडली, दैनिक राशिफल और उपाय ऑर्डर पर अतिरिक्त सिक्के मिलते हैं।
+            </p>
+            <button
+              type="button"
+              onClick={() => demoLogin("consumer@astro.local")}
+              className="gold-btn w-full rounded-xl py-2 text-xs font-bold"
+            >
+              डेमो लॉगिन करें व कॉइन्स देखें
+            </button>
           </div>
         )}
 

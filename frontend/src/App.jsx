@@ -82,6 +82,7 @@ export default function App() {
               <Route path="/app/matchmaking" element={<MatchmakingPage />} />
               <Route path="/app/panchang" element={<PanchangPage />} />
               <Route path="/app/profiles" element={<ProfilesSavedPage />} />
+              <Route path="/app/profile" element={<Navigate to="/app/profiles" replace />} />
               <Route path="/app/shop" element={<ShopCartPage />} />
               <Route path="/app/media" element={<ConsultMediaPage />} />
 

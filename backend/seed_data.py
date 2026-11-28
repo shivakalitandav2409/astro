@@ -471,3 +471,18 @@ def seed_all() -> None:
             "INSERT INTO reward_ledger (account_id, delta, reason, created_at) VALUES (1, 500, 'Welcome Bonus Credits', ?)",
             (now,),
         )
+
+        # Seed Address and Order for Demo Account (Aarav Sharma)
+        conn.execute(
+            """
+            INSERT INTO addresses (account_id, address_type, full_name, phone, line1, line2, pincode, city, state, country)
+            VALUES (1, 'Home', 'Aarav Sharma', '9800000001', 'C-11/20 Mayapuri', '', '110064', 'New Delhi', 'Delhi', 'India')
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO orders (order_number, account_id, member_id, order_kind, title, subtotal, discount, credits_used, gst, total_amount, payment_method, payment_status, razorpay_order_id, razorpay_payment_id, created_at)
+            VALUES ('ORD-2026-8829', 1, 1, 'product', 'Surya Tamra Yantra (Energized)', 550, 0, 0, 0, 550, 'Razorpay Sandbox', 'Paid', 'order_sim_8829', 'pay_sim_8829', ?)
+            """,
+            (now,),
+        )

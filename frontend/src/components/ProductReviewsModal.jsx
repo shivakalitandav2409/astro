@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { CheckCircle2, Star, XCircle } from "lucide-react";
 import { apiFetch } from "../api";
 
@@ -53,8 +54,8 @@ export default function ProductReviewsModal({ product, onClose, isHindi = true }
 
   if (!product) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-3 sm:p-4 backdrop-blur-md animate-fade-up overflow-y-auto">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/85 p-3 sm:p-4 backdrop-blur-md animate-fade-up overflow-y-auto">
       <div className="cosmic-card w-full max-w-lg rounded-3xl p-5 sm:p-6 space-y-4 border border-amber-500/40 shadow-2xl max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-800 pb-3">
@@ -203,6 +204,7 @@ export default function ProductReviewsModal({ product, onClose, isHindi = true }
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

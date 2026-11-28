@@ -118,3 +118,11 @@
   background: rgba(245, 158, 11, 0.35);
   border-radius: 3px;
 }
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

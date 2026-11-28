@@ -136,10 +136,29 @@ def test_category_dates_calculation():
         latitude=28.6139,
         longitude=77.2090,
     )
+    # Test 30 days marriage
     res = compute_category_dates(chart, category="marriage", days_ahead=30)
     assert "shubh_dates" in res
     assert "varjit_dates" in res
-    assert len(res["shubh_dates"]) > 0
-    assert len(res["varjit_dates"]) > 0
-    assert len(res["shubh_dates"]) + len(res["varjit_dates"]) <= 30
+    assert "moderate_dates" in res
+    assert res["total_scanned"] == 30
+    assert res["total_shubh"] + res["total_moderate"] + res["total_varjit"] == 30
+
+    # Test 6 months (180 days) foreign travel
+    res_travel = compute_category_dates(chart, category="travel", days_ahead=180)
+    assert res_travel["total_scanned"] == 180
+    assert res_travel["total_shubh"] > 0
+    assert res_travel["total_varjit"] > 0
+    assert res_travel["category"] == "travel"
+    assert "विदेश यात्रा" in res_travel["title_hi"]
+
+    # Verify each date entry has required fields
+    sample_date = res_travel["shubh_dates"][0]
+    assert "date" in sample_date
+    assert "weekday_hi" in sample_date
+    assert "month_label_hi" in sample_date
+    assert "tithi" in sample_date
+    assert "nakshatra" in sample_date
+    assert "muhurat_time" in sample_date
+    assert "reason_hi" in sample_date
 

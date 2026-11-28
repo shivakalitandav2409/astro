@@ -2427,15 +2427,22 @@ def compute_category_dates(
     days_ahead: int = 60
 ) -> dict[str, Any]:
     """
-    Find Category-wise Auspicious (Shubh) & Inauspicious (Varjit) Dates:
-    Categories:
-    - 'marriage': विवाह व सगाई
+    Find Category-wise Auspicious (Shubh), Moderate, & Inauspicious (Varjit) Dates
+    for up to 6 months (180 days).
+    Categories (Matching AstroScience APK CategoryDateFindModel):
+    - 'marriage': विवाह व सगाई संस्कार
     - 'business': नवीन व्यापार व दुकान आरंभ
+    - 'travel': विदेश यात्रा व दीर्घ यात्रा
     - 'property': मकान/भूमि रजिस्ट्री व गृह प्रवेश
     - 'vehicle': वाहन क्रय (कार/बाइक)
-    - 'surgery': सर्जरी व ऑपरेशन
-    Evaluates Chandra Gochar (avoiding 8th/12th), Tithi (avoiding Rikta: 4, 9, 14, Amavasya),
-    and weekday alignments.
+    - 'surgery': शल्य चिकित्सा व ऑपरेशन
+    - 'job': नौकरी जॉइनिंग व नया पदभार
+    - 'investment': स्वर्ण आभूषण व बड़ा वित्तीय निवेश
+
+    Evaluates:
+    - Chandra Gochar from natal Moon (avoiding 8th/12th, favoring Upachaya/Kendra/Trikona)
+    - Tithi (avoiding Rikta: 4, 9, 14, Amavasya 30; honoring Shukla/Krishna Paksha)
+    - Weekday & Nakshatra alignments for specific activity
     """
     st = datetime.strptime(start_date, "%Y-%m-%d").date() if start_date else date.today()
     natal_moon = next((p for p in chart.get("planets", []) if p["planet"] == "Moon"), None)
@@ -2443,16 +2450,39 @@ def compute_category_dates(
 
     category_titles = {
         "marriage": {"hi": "विवाह व सगाई संस्कार", "en": "Marriage & Betrothal"},
-        "business": {"hi": "नवीन व्यापार व प्रतिष्ठान आरंभ", "en": "New Business & Shop Inauguration"},
-        "property": {"hi": "मकान/भूमि रजिस्ट्री व गृह प्रवेश", "en": "Property Registry & Griha Pravesh"},
+        "business": {"hi": "नवीन व्यापार व दुकान आरंभ", "en": "New Business & Shop Inauguration"},
+        "travel": {"hi": "विदेश यात्रा व दीर्घ यात्रा", "en": "Foreign & Long-Distance Travel"},
+        "property": {"hi": "भूमि/मकान रजिस्ट्री व गृह प्रवेश", "en": "Property Registry & Griha Pravesh"},
         "vehicle": {"hi": "वाहन क्रय (कार/बाइक)", "en": "Vehicle Purchase (Car / Bike)"},
-        "surgery": {"hi": "चिकित्सा प्रक्रिया व सर्जरी", "en": "Medical Operation & Surgery"},
+        "surgery": {"hi": "शल्य चिकित्सा व ऑपरेशन", "en": "Medical Surgery & Treatment"},
+        "job": {"hi": "नौकरी जॉइनिंग व नया पदभार", "en": "Job Joining & New Position"},
+        "investment": {"hi": "स्वर्ण आभूषण व वित्तीय निवेश", "en": "Gold Purchase & Financial Investment"},
     }
 
     t_info = category_titles.get(category, category_titles["marriage"])
 
+    tithi_names = [
+        "प्रतिपदा", "द्वितीया", "तृतीया", "चतुर्थी", "पंचमी", "षष्ठी", "सप्तमी",
+        "अष्टमी", "नवमी", "दशमी", "एकादशी", "द्वादशी", "त्रयोदशी", "चतुर्दशी", "पूर्णिमा",
+        "प्रतिपदा", "द्वितीया", "तृतीया", "चतुर्थी", "पंचमी", "षष्ठी", "सप्तमी",
+        "अष्टमी", "नवमी", "दशमी", "एकादशी", "द्वादशी", "त्रयोदशी", "चतुर्दशी", "अमावस्या"
+    ]
+
+    nakshatra_names = [
+        "अश्विनी", "भरणी", "कृत्तिका", "रोहिणी", "मृगशिरा", "आर्द्रा", "पुनर्वसु", "पुष्य", "आश्लेषा",
+        "मघा", "पूर्वाफाल्गुनी", "उत्तराफाल्गुनी", "हस्त", "चित्रा", "स्वाती", "विशाखा", "अनुराधा", "ज्येष्ठा",
+        "मूल", "पूर्वाषाढ़ा", "उत्तराषाढ़ा", "श्रवण", "धनिष्ठा", "शतभिषा", "पूर्वाभाद्रपद", "उत्तराभाद्रपद", "रेवती"
+    ]
+
+    rashi_names_hi = ["मेष", "वृषभ", "मिथुन", "कर्क", "सिंह", "कन्या", "तुला", "वृश्चिक", "धनु", "मकर", "कुंभ", "मीन"]
+    rashi_names_en = ["Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo", "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"]
+
     shubh_dates = []
+    moderate_dates = []
     varjit_dates = []
+
+    # Clamp days_ahead between 7 and 180 (up to 6 months)
+    days_ahead = max(7, min(days_ahead, 180))
 
     for day_offset in range(days_ahead):
         cur_dt = st + timedelta(days=day_offset)
@@ -2468,79 +2498,193 @@ def compute_category_dates(
         house_from_moon = ((transit_sign - natal_sign_idx) % 12) + 1
 
         tithi_idx = int(((moon_lon - sun_lon) % 360.0) // 12.0) + 1
-        tithi_in_paksha = tithi_idx if tithi_idx <= 15 else tithi_idx - 15
+        tithi_idx_clamped = max(1, min(tithi_idx, 30))
+        paksha = "शुक्ल पक्ष" if tithi_idx_clamped <= 15 else "कृष्ण पक्ष"
+        tithi_in_paksha = tithi_idx_clamped if tithi_idx_clamped <= 15 else tithi_idx_clamped - 15
+        tithi_name = f"{paksha} {tithi_names[tithi_idx_clamped - 1]}"
+
+        nakshatra_idx = int((moon_lon % 360.0) / (360.0 / 27.0))
+        nakshatra_name = nakshatra_names[nakshatra_idx % 27]
+
         is_rikta = tithi_in_paksha in (4, 9, 14)
-        is_amavasya = tithi_idx == 30
-        weekday_idx = cur_dt.weekday() # 0 = Monday, 1 = Tuesday ... 6 = Sunday
+        is_amavasya = tithi_idx_clamped == 30
+        weekday_idx = cur_dt.weekday()  # 0=Mon, 1=Tue, 2=Wed, 3=Thu, 4=Fri, 5=Sat, 6=Sun
+        weekday_names_hi = ["सोमवार", "मंगलवार", "बुधवार", "गुरुवार", "शुक्रवार", "शनिवार", "रविवार"]
 
         date_str = cur_dt.strftime("%Y-%m-%d")
         day_str = cur_dt.strftime("%A")
+        day_hi = weekday_names_hi[weekday_idx]
+        month_label_hi = cur_dt.strftime("%B %Y").replace("January", "जनवरी").replace("February", "फरवरी").replace("March", "मार्च").replace("April", "अप्रैल").replace("May", "मई").replace("June", "जून").replace("July", "जुलाई").replace("August", "अगस्त").replace("September", "सितंबर").replace("October", "अक्टूबर").replace("November", "नवंबर").replace("December", "दिसंबर")
+        month_label_en = cur_dt.strftime("%B %Y")
 
-        # Inauspicious rules
+        # Inauspicious check
         is_bad = False
         bad_reasons_hi = []
         bad_reasons_en = []
 
         if house_from_moon == 8:
             is_bad = True
-            bad_reasons_hi.append("चंद्र अष्टम (कुंडली अनुसार निषेध)")
-            bad_reasons_en.append("Chandra Ashtama (Inauspicious 8th Moon)")
+            bad_reasons_hi.append("चंद्र अष्टम (चंद्रमा 8वें भाव में मानसिक व शारीरिक कष्ट योग)")
+            bad_reasons_en.append("Chandra Ashtama (8th Moon obstacle)")
         elif house_from_moon == 12:
             is_bad = True
             bad_reasons_hi.append("चंद्र द्वादश (हानि व व्यय योग)")
-            bad_reasons_en.append("Chandra 12th (High Expense/Drain)")
+            bad_reasons_en.append("Chandra 12th (High loss/expense)")
 
         if is_rikta:
             is_bad = True
-            bad_reasons_hi.append(f"रिक्ता तिथि (तिथि #{tithi_in_paksha})")
-            bad_reasons_en.append(f"Rikta Tithi (#{tithi_in_paksha})")
+            bad_reasons_hi.append(f"रिक्ता तिथि ({tithi_in_paksha}वीं तिथि शून्य फलदायी)")
+            bad_reasons_en.append(f"Rikta Tithi (#{tithi_in_paksha} void of good result)")
 
         if is_amavasya:
             is_bad = True
-            bad_reasons_hi.append("अमावस्या (शुभ कार्यों के लिए वर्जित)")
-            bad_reasons_en.append("Amavasya (Forbidden for auspicious deeds)")
+            bad_reasons_hi.append("अमावस्या (पितृ तिथि - शुभ कार्यों में वर्जित)")
+            bad_reasons_en.append("Amavasya (Forbidden for auspicious beginnings)")
 
-        # Specific category rules
-        if category == "marriage" and weekday_idx == 1: # Tuesday
-            is_bad = True
-            bad_reasons_hi.append("मंगलवार (विवाह के लिए वर्जित)")
-            bad_reasons_en.append("Tuesday (Avoid for Wedding)")
-        elif category == "property" and weekday_idx in (1, 5): # Tuesday & Saturday
-            is_bad = True
-            bad_reasons_hi.append("मंगलवार/शनिवार गृह प्रवेश में त्याज्य")
-            bad_reasons_en.append("Avoid Tue/Sat for Griha Pravesh")
-        elif category == "surgery" and (tithi_idx in (15, 30) or house_from_moon in (8, 12)):
-            is_bad = True
-            bad_reasons_hi.append("पूर्णिमा/अमावस्या या चंद्र अष्टम में सर्जरी वर्जित")
-            bad_reasons_en.append("Full/New Moon surgery forbidden")
+        # Specific Category Rules
+        if category == "marriage":
+            if weekday_idx == 1:
+                is_bad = True
+                bad_reasons_hi.append("मंगलवार (विवाह व मांगलिक कार्यों में वर्जित)")
+                bad_reasons_en.append("Tuesday (Avoid for Wedding/Engagement)")
+            elif weekday_idx == 5:
+                is_bad = True
+                bad_reasons_hi.append("शनिवार (विवाह के लिए त्याज्य)")
+                bad_reasons_en.append("Saturday (Inauspicious for Marriage)")
+        elif category == "business":
+            if weekday_idx == 1:
+                is_bad = True
+                bad_reasons_hi.append("मंगलवार (नया व्यापार व खाता खोलने में वर्जित)")
+                bad_reasons_en.append("Tuesday (Avoid for New Business)")
+            elif weekday_idx == 6:
+                is_bad = True
+                bad_reasons_hi.append("रविवार (दुकान व फर्म के शुभारंभ में त्याज्य)")
+                bad_reasons_en.append("Sunday (Avoid for Inauguration)")
+        elif category == "travel":
+            # Avoid travel on direction-afflicted days (Disha Shool) or Krishna Chaturdashi
+            if weekday_idx == 6 and tithi_in_paksha == 14:
+                is_bad = True
+                bad_reasons_hi.append("रविवार व चतुर्दशी (यात्रा में विघ्न योग)")
+                bad_reasons_en.append("Sunday + 14th Tithi (Travel hindrance)")
+        elif category == "property":
+            if weekday_idx in (1, 5):
+                is_bad = True
+                bad_reasons_hi.append("मंगलवार/शनिवार (मकान रजिस्ट्री व गृह प्रवेश में वर्जित)")
+                bad_reasons_en.append("Avoid Tue/Sat for Griha Pravesh & Registry")
+        elif category == "vehicle":
+            if weekday_idx in (1, 5):
+                is_bad = True
+                bad_reasons_hi.append("मंगलवार/शनिवार (नया वाहन क्रय में राहु/शनि दोष से बचें)")
+                bad_reasons_en.append("Avoid Tue/Sat for Vehicle Delivery")
+        elif category == "surgery":
+            if tithi_idx_clamped in (15, 30):
+                is_bad = True
+                bad_reasons_hi.append("पूर्णिमा/अमावस्या (रक्त दबाव अधिक होने से सर्जरी वर्जित)")
+                bad_reasons_en.append("Full/New Moon (Surgery contraindicated)")
+        elif category == "job":
+            if weekday_idx == 5 and is_rikta:
+                is_bad = True
+                bad_reasons_hi.append("शनिवार व रिक्ता तिथि (पदभार ग्रहण में देरी योग)")
+                bad_reasons_en.append("Saturday Rikta (Delays in joining)")
+        elif category == "investment":
+            if weekday_idx in (1, 5) or is_rikta:
+                is_bad = True
+                bad_reasons_hi.append("मंगलवार/शनिवार (स्वर्ण क्रय व बड़े धन निवेश में वर्जित)")
+                bad_reasons_en.append("Avoid Tue/Sat for Gold & Capital Investments")
+
+        entry = {
+            "date": date_str,
+            "weekday": day_str,
+            "weekday_hi": day_hi,
+            "month_label_hi": month_label_hi,
+            "month_label_en": month_label_en,
+            "tithi": tithi_name,
+            "tithi_idx": tithi_idx_clamped,
+            "nakshatra": nakshatra_name,
+            "house_from_moon": house_from_moon,
+            "transit_rashi_hi": rashi_names_hi[transit_sign],
+            "transit_rashi_en": rashi_names_en[transit_sign],
+        }
 
         if is_bad:
-            if len(varjit_dates) < 15:
-                varjit_dates.append({
-                    "date": date_str,
-                    "weekday": day_str,
-                    "reason_hi": " · ".join(bad_reasons_hi),
-                    "reason_en": " · ".join(bad_reasons_en),
-                })
+            entry["is_shubh"] = False
+            entry["quality"] = "avoid"
+            entry["muhurat_time"] = "कोई शुभ मुहूर्त उपलब्ध नहीं (दिन त्याज्य)"
+            entry["reason_hi"] = " · ".join(bad_reasons_hi)
+            entry["reason_en"] = " · ".join(bad_reasons_en)
+            varjit_dates.append(entry)
         else:
-            # Good date
-            if house_from_moon in (1, 3, 5, 7, 9, 10, 11) and not is_rikta and len(shubh_dates) < 15:
-                shubh_dates.append({
-                    "date": date_str,
-                    "weekday": day_str,
-                    "muhurat_time": "प्रातः 07:30 से 10:45 तक (अमृत/शुभ)",
-                    "reason_hi": f"चंद्रमा {house_from_moon}वें भाव में अनुकूल · शुभ तिथि",
-                    "reason_en": f"Moon in favorable {house_from_moon}th house · Auspicious Tithi",
-                })
+            # Check if Best or Moderate
+            is_best = False
+            best_time = "प्रातः 07:45 से 10:30 (शुभ व अमृत चौघड़िया)"
+            shubh_reason_hi = f"चंद्रमा {house_from_moon}वें भाव में अनुकूल · {tithi_name} · {nakshatra_name} नक्षत्र"
+            shubh_reason_en = f"Moon in favorable {house_from_moon}th house · {tithi_name} · {nakshatra_name}"
+
+            if category == "marriage" and weekday_idx in (3, 4, 0) and house_from_moon in (1, 5, 7, 9, 11):
+                is_best = True
+                best_time = "गोधूलि वेला (सायं 06:15 - 07:45) व अमृत बेला"
+                shubh_reason_hi += " · विवाह के लिए सर्वार्थ सिद्धि योग"
+            elif category == "business" and weekday_idx == 2 and house_from_moon in (2, 10, 11):
+                is_best = True
+                best_time = "प्रातः 09:15 से 11:30 (लाभ व अमृत चौघड़िया)"
+                shubh_reason_hi += " · बुध-चंद्र अनुकूलता व्यापार वृद्धि योग"
+            elif category == "travel" and weekday_idx in (2, 3, 4) and house_from_moon in (3, 7, 9, 11):
+                is_best = True
+                best_time = "प्रातः 06:30 से 09:15 (अमृत चौघड़िया)"
+                shubh_reason_hi += " · यात्रा सुखद व कार्य सिद्धि योग"
+            elif category == "property" and weekday_idx in (0, 3, 4) and house_from_moon in (4, 9, 11):
+                is_best = True
+                best_time = "प्रातः 08:30 से 11:00 (स्थिर लग्न मुहूर्त)"
+                shubh_reason_hi += " · गृह प्रवेश व रजिस्ट्री के लिए अचल संपत्ति योग"
+            elif category == "vehicle" and weekday_idx in (2, 3, 4, 6) and house_from_moon in (3, 4, 5, 9, 11):
+                is_best = True
+                best_time = "दोपहर 12:15 से 02:00 (अभिजित व शुभ मुहूर्त)"
+                shubh_reason_hi += " · वाहन सौख्य व दीर्घायु योग"
+            elif category == "surgery" and house_from_moon in (3, 6, 11) and tithi_in_paksha not in (4, 9, 14, 15, 30):
+                is_best = True
+                best_time = "प्रातः 07:30 से 09:45 (रोग निवारण वेला)"
+                shubh_reason_hi += " · उपचय भाव चंद्र - शीघ्र स्वास्थ्य लाभ"
+            elif category == "job" and weekday_idx in (0, 2, 3, 4) and house_from_moon in (6, 10, 11):
+                is_best = True
+                best_time = "प्रातः 09:45 से 11:45 (राज्य पद लाभ चौघड़िया)"
+                shubh_reason_hi += " · कर्म भाव अनुकूलता - उन्नति योग"
+            elif category == "investment" and weekday_idx in (3, 4) and house_from_moon in (2, 5, 9, 11):
+                is_best = True
+                best_time = "प्रातः 10:15 से 12:30 (धन वृद्धि शुभ मुहूर्त)"
+                shubh_reason_hi += " · गुरु-शुक्र धन भाव पुष्टि योग"
+            elif house_from_moon in (1, 3, 5, 7, 9, 10, 11):
+                is_best = True
+
+            entry["is_shubh"] = True
+            entry["quality"] = "best" if is_best else "moderate"
+            entry["muhurat_time"] = best_time
+            entry["reason_hi"] = shubh_reason_hi
+            entry["reason_en"] = shubh_reason_en
+
+            if is_best:
+                shubh_dates.append(entry)
+            else:
+                moderate_dates.append(entry)
+
+    # Sort each list by date
+    shubh_dates.sort(key=lambda x: x["date"])
+    moderate_dates.sort(key=lambda x: x["date"])
+    varjit_dates.sort(key=lambda x: x["date"])
 
     return {
         "category": category,
         "title_hi": t_info["hi"],
         "title_en": t_info["en"],
+        "start_date": st.strftime("%Y-%m-%d"),
+        "end_date": (st + timedelta(days=days_ahead - 1)).strftime("%Y-%m-%d"),
+        "days_ahead": days_ahead,
         "shubh_dates": shubh_dates,
+        "moderate_dates": moderate_dates,
         "varjit_dates": varjit_dates,
         "total_shubh": len(shubh_dates),
+        "total_moderate": len(moderate_dates),
         "total_varjit": len(varjit_dates),
+        "total_scanned": days_ahead,
     }
 
 

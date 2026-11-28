@@ -943,6 +943,9 @@ def full_kundli_bundle(member: dict[str, Any], target_year: int | None = None) -
         "luck_meter": compute_luck_meter(chart),
         "personal_dayfal": compute_personal_dayfal(chart),
         "weekly_forecast": compute_weekly_personal_forecast(chart),
+        "kp_cusps": compute_kp_cusp_chart(chart, member["dob"], member["birth_time"], float(member["latitude"]), float(member["longitude"]), float(member.get("tz_offset", 5.5))),
+        "kp_cusp_chart": compute_kp_cusp_chart(chart, member["dob"], member["birth_time"], float(member["latitude"]), float(member["longitude"]), float(member.get("tz_offset", 5.5))),
+        "visual_upay_chart": compute_lal_kitab_visual_upay_chart(chart),
     }
     return raw_bundle
 
@@ -2645,3 +2648,275 @@ def compute_weekly_personal_forecast(chart: dict[str, Any], start_date: str = No
         "alert_day": alert_day or "None",
         "days": daily_forecasts,
     }
+
+
+def compute_kp_cusp_chart(
+    chart: dict[str, Any],
+    dob: str,
+    birth_time: str,
+    latitude: float,
+    longitude: float,
+    tz_offset: float = 5.5,
+    place_name: str = "",
+    iana_tz: str | None = None,
+) -> dict[str, Any]:
+    """
+    Compute Krishnamurti Paddhati (KP) Bhav Chalit Cuspal Chart:
+    - 12 Cusps calculated using Placidus house system under Lahiri Ayanamsa.
+    - Each Cusp has Cusp DMS, Rashi, Nakshatra, Pada, and 4-fold Sub Lords (RL, NL, SL, SSL).
+    - Determines Chalit house boundaries (Bhav Sandhi) and identifies occupying planets in each Chalit house.
+    """
+    jd_ut, _, _ = to_jd_ut(dob, birth_time, tz_offset, place_name, iana_tz)
+    swe.set_sid_mode(swe.SIDM_LAHIRI, 0, 0)
+    cusps_raw, ascmc = swe.houses_ex(jd_ut, latitude, longitude, b'P', CALC_FLAGS)
+
+    cusps_list = []
+    planets = chart.get("planets", [])
+
+    for i in range(12):
+        cusp_num = i + 1
+        cusp_lon = cusps_raw[i] % 360.0
+        next_cusp_lon = cusps_raw[(i + 1) % 12] % 360.0
+
+        rashi_idx = int(cusp_lon // 30.0)
+        deg_in_sign = cusp_lon % 30.0
+        dms = _fmt_dms(deg_in_sign)
+
+        tot_min = cusp_lon * 60.0
+        nak_idx = int(tot_min // 800.0) % 27
+        rem_min = tot_min % 800.0
+        pada = int(rem_min // 200.0) + 1
+        nak_name = NAKSHATRAS[nak_idx][0]
+
+        rl, nl, sl, ssl = calculate_kp_sub_lords(cusp_lon)
+
+        # Chalit house occupants: check if planet longitude is between cusp_lon and next_cusp_lon
+        occupants = []
+        for p in planets:
+            p_lon = p.get("longitude", p.get("lon", 0.0)) % 360.0
+            is_in = False
+            if cusp_lon <= next_cusp_lon:
+                is_in = cusp_lon <= p_lon < next_cusp_lon
+            else: # crosses 0 deg Aries
+                is_in = p_lon >= cusp_lon or p_lon < next_cusp_lon
+            if is_in:
+                occupants.append({
+                    "planet": p.get("planet"),
+                    "planet_hi": p.get("planet_hi", PLANET_NAMES_HI.get(p.get("planet"))),
+                    "dms": p.get("dms"),
+                    "retrograde": p.get("retrograde", False),
+                    "is_benefic": p.get("is_benefic", True),
+                })
+
+        cusps_list.append({
+            "cusp_number": cusp_num,
+            "longitude": round(cusp_lon, 4),
+            "rashi": RASHIS[rashi_idx],
+            "rashi_hi": RASHIS_HI[rashi_idx],
+            "dms": dms,
+            "nakshatra": nak_name,
+            "pada": pada,
+            "rl": rl,
+            "nl": nl,
+            "sl": sl,
+            "ssl": ssl,
+            "rl_hi": PLANET_NAMES_HI.get(rl, rl),
+            "nl_hi": PLANET_NAMES_HI.get(nl, nl),
+            "sl_hi": PLANET_NAMES_HI.get(sl, sl),
+            "ssl_hi": PLANET_NAMES_HI.get(ssl, ssl),
+            "sandhi_start_dms": dms,
+            "sandhi_end_dms": _fmt_dms(next_cusp_lon % 30.0),
+            "occupants": occupants,
+        })
+
+    return {
+        "ayanamsa": chart.get("ayanamsa", "Chitrapaksha Lahiri"),
+        "house_system": "Placidus (KP Standard)",
+        "cusps": cusps_list,
+    }
+
+
+def compute_lal_kitab_visual_upay_chart(chart: dict[str, Any]) -> list[dict[str, Any]]:
+    """
+    Generate 12-House Lal Kitab Visual Graphic Upay Map:
+    Displays primary tangible remedial substance, rule, timings, and prohibitions for each house.
+    """
+    standard_upays = {
+        1: {
+            "title_hi": "प्रथम भाव (लग्न - शरीर व आत्मबल)",
+            "title_en": "House 1 (Lagna - Physical Vitality & Core Self)",
+            "substance_hi": "तांबे का ठोस सिक्का या शुद्ध गुड़",
+            "substance_en": "Solid Copper Coin or Pure Jaggery",
+            "rule_hi": "सिक्के में छेद न हो। इसे बहते स्वच्छ जल में प्रवाहित करें अथवा मंगलवार को गुड़ का दान करें।",
+            "rule_en": "Immerse solid unpierced copper coin in moving river or donate jaggery on Tuesday.",
+            "timing_hi": "प्रातः सूर्योदय से दोपहर 12 बजे के मध्य",
+            "timing_en": "Morning between sunrise and noon",
+            "parhez_hi": "मुफ्त की वस्तुएं न लें, सदाचार का पालन करें।",
+            "parhez_en": "Refuse unearned gifts; uphold impeccable moral conduct.",
+        },
+        2: {
+            "title_hi": "द्वितीय भाव (धन, वाणी व कुटुंब)",
+            "title_en": "House 2 (Wealth, Speech & Family Lineage)",
+            "substance_hi": "शुद्ध चांदी का ठोस चौकोर टुकड़ा",
+            "substance_en": "Solid Pure Silver Square Tile",
+            "rule_hi": "चांदी का चौकोर टुकड़ा पीले या सफेद कपड़े में लपेटकर अपनी तिजोरी या बटुए में सदैव रखें।",
+            "rule_en": "Keep a solid silver square wrapped in cloth inside your cash locker or wallet.",
+            "timing_hi": "सोमवार या शुक्ल पक्ष की द्वितीया",
+            "timing_en": "Monday or Waxing Moon Phase",
+            "parhez_hi": "कटु वाणी और व्यर्थ के वाद-विवाद से बचें।",
+            "parhez_en": "Abstain from harsh or deceitful speech.",
+        },
+        3: {
+            "title_hi": "तृतीय भाव (पराक्रम, छोटे भाई-बहन)",
+            "title_en": "House 3 (Courage, Enterprise & Younger Siblings)",
+            "substance_hi": "फिटकरी से दांत साफ व हरे रंग से परहेज",
+            "substance_en": "Clean Teeth with Alum & Avoid Green Color",
+            "rule_hi": "फिटकरी से दातून करें, हाथी दांत की कोई वस्तु घर में न रखें।",
+            "rule_en": "Clean teeth with alum daily; strictly avoid keeping ivory articles at home.",
+            "timing_hi": "मंगलवार प्रातः",
+            "timing_en": "Tuesday morning",
+            "parhez_hi": "हरे वस्त्र धारण करने और तोता पालने से बचें।",
+            "parhez_en": "Avoid green garments and keeping caged birds.",
+        },
+        4: {
+            "title_hi": "चतुर्थ भाव (माता, मन की शांति व भूमि/भवन)",
+            "title_en": "House 4 (Mother, Domestic Peace & Fixed Assets)",
+            "substance_hi": "कच्चा दूध या बहते जल में चांदी का सिक्का",
+            "substance_en": "Raw Milk or Silver Coin in River",
+            "rule_hi": "माता का नित्य चरण स्पर्श कर आशीर्वाद लें; घर के नल से जल का टपकना तुरंत रोकें।",
+            "rule_en": "Touch mother's feet daily for mental bliss; fix all leaking water taps immediately.",
+            "timing_hi": "सोमवार या पूर्णिमा",
+            "timing_en": "Monday or Full Moon day",
+            "parhez_hi": "दूध या पानी का व्यापार न करें।",
+            "parhez_en": "Never sell milk or pure drinking water commercially.",
+        },
+        5: {
+            "title_hi": "पंचम भाव (संतान, बुद्धि व उच्च विद्या)",
+            "title_en": "House 5 (Intellect, Progeny & Sacred Learning)",
+            "substance_hi": "तांबे के लोटे में जल व चने की दाल",
+            "substance_en": "Copper Vessel Water & Chana Dal",
+            "rule_hi": "सूर्य देव को तांबे के लोटे से अर्घ्य दें, और कुत्तों को मीठी रोटी खिलाएं।",
+            "rule_en": "Offer fresh water in copper lota to rising Sun; feed sweet rotis to dogs.",
+            "timing_hi": "रविवार प्रातः",
+            "timing_en": "Sunday morning at dawn",
+            "parhez_hi": "गुरुजनों का अपमान न करें व अहंकार त्यागें।",
+            "parhez_en": "Respect teachers and eliminate intellectual vanity.",
+        },
+        6: {
+            "title_hi": "षष्ठ भाव (शत्रु, रोग व ऋण निवारण)",
+            "title_en": "House 6 (Health Resilience, Debt & Overcoming Obstacles)",
+            "substance_hi": "कच्चा डली वाला नमक व कांसे का बर्तन",
+            "substance_en": "Rock Salt Lumps & Bronze Utensil",
+            "rule_hi": "कच्चे नमक की डली बहते पानी में डालें अथवा कांसे के बर्तन का दान करें।",
+            "rule_en": "Immerse raw rock salt in running stream or donate bronze vessel.",
+            "timing_hi": "बुधवार सायं",
+            "timing_en": "Wednesday twilight",
+            "parhez_hi": "उधार लेने व कर्ज देने में सतर्क रहें।",
+            "parhez_en": "Avoid casual borrowing or reckless lending.",
+        },
+        7: {
+            "title_hi": "सप्तम भाव (दांपत्य, जीवनसाथी व व्यापार साझेदारी)",
+            "title_en": "House 7 (Spouse, Domestic Harmony & Partnerships)",
+            "substance_hi": "कांसे का दान व पत्नी को स्वर्ण आभूषण",
+            "substance_en": "Bronze Donation & Gold Jewellery for Spouse",
+            "rule_hi": "गौशाला में हरा चारा दान करें, घर की पहली रोटी गाय माता को दें।",
+            "rule_en": "Serve fresh green fodder at cow shelters; offer first daily roti to cows.",
+            "timing_hi": "शुक्रवार प्रातः",
+            "timing_en": "Friday morning",
+            "parhez_hi": "विवाह के समय मिले चांदी-सोने के उपहार कभी न बेचें।",
+            "parhez_en": "Never liquidate heirloom bridal jewellery or wedding gifts.",
+        },
+        8: {
+            "title_hi": "अष्टम भाव (आयु, अनहोनी से रक्षा व गुप्त ज्ञान)",
+            "title_en": "House 8 (Longevity, Mishap Protection & Subconscious)",
+            "substance_hi": "श्मशान का पानी या 4 बादाम मंदिर में",
+            "substance_en": "Crematorium Spring Water or 4 Almonds to Temple",
+            "rule_hi": "चार बादाम धर्मस्थल में रखकर 4 वापस लाकर पीले कपड़े में बांधकर घर रखें।",
+            "rule_en": "Place 4 almonds at temple and bring back 4 to keep safe at home.",
+            "timing_hi": "शनिवार दोपहर",
+            "timing_en": "Saturday midday",
+            "parhez_hi": "दक्षिण मुखी द्वार पर निवास करने से बचें।",
+            "parhez_en": "Avoid southern-facing residential entrances.",
+        },
+        9: {
+            "title_hi": "नवम भाव (भाग्य, धर्म व पिता का सुख)",
+            "title_en": "House 9 (Fortune, Dharma & Paternal Blessings)",
+            "substance_hi": "केसर का तिलक व पीले वस्त्र में चने की दाल",
+            "substance_en": "Saffron (Kesar) Tilak & Chana Dal in Yellow Cloth",
+            "rule_hi": "माथे, नाभि व जुबान पर नित्य केसर का तिलक लगाएं; कुल पुरोहित का सम्मान करें।",
+            "rule_en": "Apply pure kesar tilak on navel and forehead daily; honor family priests.",
+            "timing_hi": "गुरुवार प्रातः",
+            "timing_en": "Thursday morning",
+            "parhez_hi": "नास्तिक विचारों व धर्म निंदा से दूर रहें।",
+            "parhez_en": "Abstain from cynicism or ridiculing sacred traditions.",
+        },
+        10: {
+            "title_hi": "दशम भाव (कर्म, प्रतिष्ठा व आजीविका)",
+            "title_en": "House 10 (Career Stature, Karma & Public Honour)",
+            "substance_hi": "दस अंधे व्यक्तियों को भोजन व मदिरा-मांस त्याग",
+            "substance_en": "Feed Visually Impaired & Abstain from Intoxicants",
+            "rule_hi": "शनिवार को दृष्टिहीनों को भोजन कराएं, सरसों तेल का छाया पात्र दान करें।",
+            "rule_en": "Feed visually impaired individuals on Saturday; donate shadow mustard oil vessel.",
+            "timing_hi": "शनिवार सायं",
+            "timing_en": "Saturday evening",
+            "parhez_hi": "शराब व मांसाहार का पूर्ण त्याग करें।",
+            "parhez_en": "Total abstinence from alcohol and non-vegetarian food.",
+        },
+        11: {
+            "title_hi": "एकादश भाव (लाभ, इच्छापूर्ति व आय के स्रोत)",
+            "title_en": "House 11 (Income Inflows, Desires & Network Gain)",
+            "substance_hi": "कच्चा कोयला या भैरव मंदिर उपासना",
+            "substance_en": "Raw Coal or Bhairav Devotion",
+            "rule_hi": "नदी में 4 सूखे नारियल अथवा कच्चा कोयला प्रवाहित करें।",
+            "rule_en": "Immerse 4 whole dry coconuts or raw coal into running river.",
+            "timing_hi": "शनिवार प्रातः",
+            "timing_en": "Saturday morning",
+            "parhez_hi": "अनैतिक धनार्जन व सट्टेबाजी से दूर रहें।",
+            "parhez_en": "Refuse speculative gambles and illicit earnings.",
+        },
+        12: {
+            "title_hi": "द्वादश भाव (व्यय, विदेश यात्रा व मोक्ष)",
+            "title_en": "House 12 (Expenditures, Foreign Travel & Subconscious Release)",
+            "substance_hi": "सौंफ व खांड की लाल पोटली",
+            "substance_en": "Red Fabric Pouch of Fennel Seeds & Raw Sugar",
+            "rule_hi": "लाल कपड़े में सौंफ और खांड बांधकर अपने शयनकक्ष में सिरहाने रखें।",
+            "rule_en": "Keep a red pouch containing fennel seeds and raw sugar under mattress head.",
+            "timing_hi": "मंगलवार दोपहर",
+            "timing_en": "Tuesday midday",
+            "parhez_hi": "घर की छत पर कबाड़ या बंद घड़ियां न रखें।",
+            "parhez_en": "Keep rooftop clean; discard non-working clutter and clocks.",
+        },
+    }
+
+    houses_map = []
+    planets = chart.get("planets", [])
+
+    for h_num in range(1, 13):
+        base = standard_upays[h_num]
+        occupants = [
+            {
+                "planet": p.get("planet"),
+                "planet_hi": p.get("planet_hi", PLANET_NAMES_HI.get(p.get("planet"))),
+                "dms": p.get("dms"),
+                "is_benefic": p.get("is_benefic", True),
+            }
+            for p in planets if p.get("house") == h_num
+        ]
+
+        houses_map.append({
+            "house": h_num,
+            "title_hi": base["title_hi"],
+            "title_en": base["title_en"],
+            "substance_hi": base["substance_hi"],
+            "substance_en": base["substance_en"],
+            "rule_hi": base["rule_hi"],
+            "rule_en": base["rule_en"],
+            "timing_hi": base["timing_hi"],
+            "timing_en": base["timing_en"],
+            "parhez_hi": base["parhez_hi"],
+            "parhez_en": base["parhez_en"],
+            "occupants": occupants,
+            "has_planets": len(occupants) > 0,
+        })
+
+    return houses_map

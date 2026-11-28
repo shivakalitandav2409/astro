@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { Bell, BookOpen, Coins, HelpCircle, MessageSquare, PhoneCall, ThumbsUp, Video } from "lucide-react";
+import { Bell, BookOpen, Coins, HelpCircle, MessageSquare, PhoneCall, Play, Sparkles, ThumbsUp, Video, XCircle } from "lucide-react";
 import { apiFetch } from "../../api";
 import { useApp } from "../../context/AppContext";
+import SpeechButton from "../../components/SpeechButton";
 
 export default function ConsultMediaPage() {
   const { account, openUpgradeModal, refreshAccountState, showToast } = useApp();
@@ -15,6 +16,8 @@ export default function ConsultMediaPage() {
   const [notifs, setNotifs] = useState([]);
   const [feedbackMsg, setFeedbackMsg] = useState("");
   const [commentText, setCommentText] = useState({});
+  const [activeVideo, setActiveVideo] = useState(null);
+  const [activeBlog, setActiveBlog] = useState(null);
 
   async function loadMedia() {
     try {
@@ -136,61 +139,76 @@ export default function ConsultMediaPage() {
       {/* Videos & Blogs */}
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="cosmic-card rounded-2xl p-5 space-y-3">
-          <h2 className="text-base font-bold text-white flex items-center gap-2"><Video className="h-4 w-4 text-amber-400" /> Spiritual Videos</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-bold text-white flex items-center gap-2">
+              <Video className="h-4 w-4 text-amber-400" /> गुरुजी वीडियो लेक्चर्स व प्रवचन
+            </h2>
+            <span className="text-[11px] text-slate-400">Recorded & Live Sessions</span>
+          </div>
           {videos.map((v) => (
-            <div key={v.id} className="rounded-xl border border-slate-800 bg-slate-900/70 p-3 space-y-1.5">
+            <div key={v.id} className="rounded-xl border border-slate-800 bg-slate-900/70 p-3.5 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="font-bold text-white">{v.title}</span>
-                <span className="text-slate-400">{v.duration}</span>
+                <span className="font-bold text-white text-sm">{v.title}</span>
+                <span className="rounded bg-slate-800 px-2 py-0.5 text-[10px] text-slate-300 font-mono">
+                  {v.duration}
+                </span>
               </div>
-              <p className="text-slate-400">{v.summary}</p>
-              <button
-                type="button"
-                onClick={() => apiFetch(`/videos/${v.id}/like`, { method: "POST" }).then(loadMedia)}
-                className="flex items-center gap-1 text-amber-300 hover:underline"
-              >
-                <ThumbsUp className="h-3.5 w-3.5" /> {v.likes} Likes
-              </button>
+              <p className="text-slate-300 leading-relaxed text-[11px]">{v.summary}</p>
+              <div className="flex items-center justify-between pt-1 border-t border-slate-800/80">
+                <button
+                  type="button"
+                  onClick={() => setActiveVideo(v)}
+                  className="flex items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/15 px-3 py-1 text-[11px] font-bold text-amber-300 hover:bg-amber-500/25 transition"
+                >
+                  <Play className="h-3 w-3 fill-amber-300" /> वीडियो देखें (Play Lecture)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => apiFetch(`/videos/${v.id}/like`, { method: "POST" }).then(loadMedia)}
+                  className="flex items-center gap-1 text-[11px] text-slate-400 hover:text-amber-300"
+                >
+                  <ThumbsUp className="h-3.5 w-3.5" /> {v.likes}
+                </button>
+              </div>
             </div>
           ))}
         </div>
 
         <div className="cosmic-card rounded-2xl p-5 space-y-3">
-          <h2 className="text-base font-bold text-white flex items-center gap-2"><BookOpen className="h-4 w-4 text-amber-400" /> Jyotish Blogs & Comments</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-bold text-white flex items-center gap-2">
+              <BookOpen className="h-4 w-4 text-amber-400" /> ज्योतिषीय ब्लॉग व गोचर लेख
+            </h2>
+            <span className="text-[11px] text-slate-400">Authoritative Insights</span>
+          </div>
           {blogs.map((b) => (
-            <div key={b.id} className="rounded-xl border border-slate-800 bg-slate-900/70 p-3 space-y-2">
-              <div className="font-bold text-amber-300">{b.title}</div>
-              <p className="text-slate-300">{b.content}</p>
-              <div className="flex items-center gap-3">
+            <div key={b.id} className="rounded-xl border border-slate-800 bg-slate-900/70 p-3.5 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-amber-300 text-sm">{b.title}</span>
+                <span className="rounded bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-400">
+                  {b.category}
+                </span>
+              </div>
+              <p className="text-slate-300 text-[11px] line-clamp-2 leading-relaxed">{b.content}</p>
+              <div className="flex items-center justify-between pt-1 border-t border-slate-800/80">
                 <button
                   type="button"
-                  onClick={() => apiFetch(`/blogs/${b.id}/like`, { method: "POST" }).then(loadMedia)}
-                  className="flex items-center gap-1 text-amber-300"
+                  onClick={() => setActiveBlog(b)}
+                  className="text-amber-300 font-bold hover:underline text-[11px]"
                 >
-                  <ThumbsUp className="h-3.5 w-3.5" /> {b.likes} Likes
+                  पूरा लेख पढ़ें व सुनें (Read Article) →
                 </button>
-                <span className="text-slate-400">{b.comments?.length || 0} comments</span>
+                <div className="flex items-center gap-2">
+                  <SpeechButton text={`${b.title}. ${b.content}`} lang="hi" />
+                  <button
+                    type="button"
+                    onClick={() => apiFetch(`/blogs/${b.id}/like`, { method: "POST" }).then(loadMedia)}
+                    className="flex items-center gap-1 text-[11px] text-slate-400 hover:text-amber-300"
+                  >
+                    <ThumbsUp className="h-3.5 w-3.5" /> {b.likes}
+                  </button>
+                </div>
               </div>
-              {b.comments?.length > 0 && (
-                <div className="space-y-1 rounded-lg bg-slate-950/60 p-2">
-                  {b.comments.slice(0, 3).map((cm) => (
-                    <div key={cm.id} className="text-[11px] text-slate-300">
-                      <strong className="text-amber-300">{cm.account_name}:</strong> {cm.comment}
-                    </div>
-                  ))}
-                </div>
-              )}
-              {account && (
-                <div className="flex gap-2">
-                  <input
-                    placeholder="Add a comment..."
-                    value={commentText[b.id] || ""}
-                    onChange={(e) => setCommentText((p) => ({ ...p, [b.id]: e.target.value }))}
-                    className="flex-1 rounded border border-slate-700 bg-slate-950 px-2.5 py-1 text-white"
-                  />
-                  <button onClick={() => postBlogComment(b.id)} className="rounded bg-amber-500/20 px-3 py-1 font-semibold text-amber-300">Post</button>
-                </div>
-              )}
             </div>
           ))}
         </div>
@@ -199,16 +217,36 @@ export default function ConsultMediaPage() {
       {/* Credits, Notifications & FAQs + Feedback */}
       <div className="grid gap-6 md:grid-cols-3">
         {account && (
-          <div className="cosmic-card rounded-2xl p-5 space-y-2">
-            <h3 className="font-bold text-amber-300 flex items-center gap-1.5"><Coins className="h-4 w-4" /> Reward Credits: ₹{credits.balance}</h3>
-            {credits.ledger.map((l) => (
-              <div key={l.id} className="flex justify-between border-b border-slate-800 py-1.5">
-                <span className="text-slate-300">{l.reason}</span>
-                <span className={l.delta >= 0 ? "text-emerald-400 font-bold" : "text-rose-400 font-bold"}>
-                  {l.delta >= 0 ? `+${l.delta}` : l.delta}
-                </span>
+          <div className="cosmic-card rounded-2xl p-5 space-y-3">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+              <h3 className="font-bold text-amber-300 flex items-center gap-1.5">
+                <Coins className="h-4 w-4 text-amber-400" /> एस्ट्रो कॉइन्स (Astro Coins Wallet)
+              </h3>
+              <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-300">
+                100 Coins = ₹50
+              </span>
+            </div>
+            <div className="rounded-xl border border-amber-500/30 bg-amber-950/20 p-3 flex items-center justify-between">
+              <div>
+                <span className="text-[10px] text-slate-400 block uppercase font-bold">सक्रिय कॉइन्स बैलेंस</span>
+                <span className="text-lg font-black text-amber-300">{credits.balance} कॉइन्स</span>
               </div>
-            ))}
+              <div className="text-right">
+                <span className="text-[10px] text-slate-400 block uppercase font-bold">डिस्काउंट मूल्य</span>
+                <span className="text-sm font-bold text-emerald-400">≈ ₹{(credits.balance * 0.5).toFixed(0)}</span>
+              </div>
+            </div>
+            <div className="space-y-1.5 max-h-48 overflow-y-auto">
+              <span className="text-[10px] text-slate-400 uppercase font-bold block">सिक्कों का इतिहास (Ledger)</span>
+              {credits.ledger.map((l) => (
+                <div key={l.id} className="flex justify-between border-b border-slate-800/80 py-1 text-[11px]">
+                  <span className="text-slate-300 truncate max-w-[180px]">{l.reason}</span>
+                  <span className={l.delta >= 0 ? "text-emerald-400 font-bold" : "text-rose-400 font-bold"}>
+                    {l.delta >= 0 ? `+${l.delta}` : l.delta}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
@@ -249,6 +287,110 @@ export default function ConsultMediaPage() {
           )}
         </div>
       </div>
+
+      {/* Guruji Video Lecture Playback Modal */}
+      {activeVideo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-3 sm:p-4 backdrop-blur-md animate-fade-up overflow-y-auto">
+          <div className="cosmic-card w-full max-w-2xl rounded-3xl p-5 sm:p-6 space-y-4 border border-amber-500/40 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div>
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <Video className="h-4 w-4 text-amber-400" /> {activeVideo.title}
+                </h3>
+                <p className="text-[11px] text-slate-400">{activeVideo.category} · {activeVideo.duration}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveVideo(null)}
+                className="rounded-xl border border-slate-700 bg-slate-900 p-1.5 text-slate-400 hover:text-white"
+              >
+                <XCircle className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Video Player Container */}
+            <div className="relative aspect-video w-full rounded-2xl bg-slate-950 border border-slate-800 flex flex-col items-center justify-center p-6 text-center space-y-3">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 animate-pulse">
+                <Play className="h-8 w-8 fill-amber-400 ml-1" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-white">{activeVideo.title}</h4>
+                <p className="text-xs text-amber-200 mt-1">गुरदेव जी.डी. वशिष्ठ जी द्वारा प्रमाणित ज्योतिषीय प्रवचन</p>
+                <p className="text-[11px] text-slate-400 mt-2 max-w-md">
+                  {activeVideo.summary}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-2 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => apiFetch(`/videos/${activeVideo.id}/like`, { method: "POST" }).then(loadMedia)}
+                className="flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-amber-300"
+              >
+                <ThumbsUp className="h-3.5 w-3.5" /> Like ({activeVideo.likes})
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveVideo(null)}
+                className="gold-btn rounded-xl px-5 py-2 text-xs font-bold"
+              >
+                बंद करें (Close)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Jyotish Blog Article Reader Modal with TTS */}
+      {activeBlog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-3 sm:p-4 backdrop-blur-md animate-fade-up overflow-y-auto">
+          <div className="cosmic-card w-full max-w-2xl rounded-3xl p-5 sm:p-6 space-y-4 border border-amber-500/40 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div>
+                <span className="rounded bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold text-amber-400 uppercase">
+                  {activeBlog.category}
+                </span>
+                <h3 className="text-base font-bold text-white mt-1">
+                  {activeBlog.title}
+                </h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <SpeechButton text={`${activeBlog.title}. ${activeBlog.content}`} lang="hi" />
+                <button
+                  type="button"
+                  onClick={() => setActiveBlog(null)}
+                  className="rounded-xl border border-slate-700 bg-slate-900 p-1.5 text-slate-400 hover:text-white"
+                >
+                  <XCircle className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="prose prose-invert max-w-none text-slate-200 text-xs leading-relaxed space-y-3">
+              <p className="text-sm font-medium text-amber-200/90 leading-relaxed border-l-2 border-amber-500 pl-3">
+                {activeBlog.summary || activeBlog.title}
+              </p>
+              <p className="leading-relaxed whitespace-pre-line">
+                {activeBlog.content}
+              </p>
+            </div>
+
+            <div className="flex items-center justify-between pt-2 border-t border-slate-800">
+              <div className="text-[11px] text-slate-400">
+                प्रकाशित: {activeBlog.published_at || "हालिया"}
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveBlog(null)}
+                className="gold-btn rounded-xl px-5 py-2 text-xs font-bold"
+              >
+                पढ़ लिया (Done)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

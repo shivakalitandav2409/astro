@@ -27,6 +27,10 @@ import { apiFetch } from "../../api";
 import CitySearchInput from "../../components/CitySearchInput";
 import NorthIndianChart from "../../components/NorthIndianChart";
 import SouthIndianChart from "../../components/SouthIndianChart";
+import BhavChalitChart from "../../components/BhavChalitChart";
+import LalKitabUpayChart from "../../components/LalKitabUpayChart";
+import CategoryDateFinder from "../../components/CategoryDateFinder";
+import SpeechButton from "../../components/SpeechButton";
 import { useApp } from "../../context/AppContext";
 
 export default function KundliWorkbench() {
@@ -368,9 +372,15 @@ export default function KundliWorkbench() {
               </div>
 
               <div>
-                <h3 className="text-sm font-bold text-white">
-                  {isHindi ? bundle.personal_dayfal.title_hi : bundle.personal_dayfal.title_en}
-                </h3>
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-sm font-bold text-white">
+                    {isHindi ? bundle.personal_dayfal.title_hi : bundle.personal_dayfal.title_en}
+                  </h3>
+                  <SpeechButton
+                    text={`${isHindi ? bundle.personal_dayfal.title_hi : bundle.personal_dayfal.title_en}. ${isHindi ? bundle.personal_dayfal.pred_hi : bundle.personal_dayfal.pred_en}`}
+                    lang={isHindi ? "hi" : "en"}
+                  />
+                </div>
                 <p className="mt-1 text-xs text-slate-200 leading-relaxed">
                   {isHindi ? bundle.personal_dayfal.pred_hi : bundle.personal_dayfal.pred_en}
                 </p>
@@ -1037,7 +1047,68 @@ export default function KundliWorkbench() {
                 </span>
               )}
             </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveModule("bhav_chalit")}
+              className={`flex items-center gap-2 whitespace-nowrap rounded-xl px-4 py-2.5 text-xs font-bold transition ${
+                activeModule === "bhav_chalit"
+                  ? "gold-btn"
+                  : "border border-slate-800 bg-slate-900/80 text-slate-300 hover:border-amber-500/40"
+              }`}
+            >
+              <Compass className="h-4 w-4 text-emerald-400" />
+              <span>{isHindi ? "KP भाव चलित कस्प" : "KP Cuspal Chart"}</span>
+              <span className="rounded-full bg-emerald-500/20 px-1.5 py-0.2 text-[10px] text-emerald-300 font-bold">
+                12
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveModule("upay_chart")}
+              className={`flex items-center gap-2 whitespace-nowrap rounded-xl px-4 py-2.5 text-xs font-bold transition ${
+                activeModule === "upay_chart"
+                  ? "gold-btn"
+                  : "border border-slate-800 bg-slate-900/80 text-slate-300 hover:border-amber-500/40"
+              }`}
+            >
+              <Sparkles className="h-4 w-4 text-amber-400" />
+              <span>{isHindi ? "सचित्र उपाय नक्शा" : "Graphic Upay Map"}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveModule("date_finder")}
+              className={`flex items-center gap-2 whitespace-nowrap rounded-xl px-4 py-2.5 text-xs font-bold transition ${
+                activeModule === "date_finder"
+                  ? "gold-btn"
+                  : "border border-slate-800 bg-slate-900/80 text-slate-300 hover:border-amber-500/40"
+              }`}
+            >
+              <Calendar className="h-4 w-4 text-amber-400" />
+              <span>{isHindi ? "शुभ तारीख खोजक" : "Shubh Date Finder"}</span>
+            </button>
           </div>
+
+          {/* New Module: KP Bhav Chalit Cuspal Chart */}
+          {activeModule === "bhav_chalit" && (
+            <BhavChalitChart kpCusps={bundle.kp_cusps} isHindi={isHindi} />
+          )}
+
+          {/* New Module: Lal Kitab Visual Graphic Upay Map */}
+          {activeModule === "upay_chart" && (
+            <LalKitabUpayChart visualUpays={bundle.visual_upay_chart} isHindi={isHindi} />
+          )}
+
+          {/* New Module: Category Auspicious Date Finder */}
+          {activeModule === "date_finder" && (
+            <CategoryDateFinder
+              memberId={activeMember?.id}
+              guestData={guestForm}
+              isHindi={isHindi}
+            />
+          )}
 
           {/* Module 1: 12 Houses Predictions & Remedies */}
           {activeModule === "houses" && (

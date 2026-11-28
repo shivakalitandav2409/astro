@@ -17,6 +17,11 @@ from .ephemeris import (
     compute_luck_meter,
     compute_personal_dayfal,
     compute_category_dates,
+    compute_weekly_personal_forecast,
+    calculate_kp_sub_lords,
+    assign_jaimini_karakas,
+    compute_kp_cusp_chart,
+    compute_lal_kitab_visual_upay_chart,
 )
 from .pdf_generator import generate_kundli_pdf, generate_order_invoice_pdf
 
@@ -37,6 +42,11 @@ __all__ = [
     "compute_luck_meter",
     "compute_personal_dayfal",
     "compute_category_dates",
+    "compute_weekly_personal_forecast",
+    "calculate_kp_sub_lords",
+    "assign_jaimini_karakas",
+    "compute_kp_cusp_chart",
+    "compute_lal_kitab_visual_upay_chart",
     "generate_kundli_pdf",
     "generate_order_invoice_pdf",
 ]

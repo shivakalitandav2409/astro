@@ -255,6 +255,12 @@ class CrmClientRegReq(BaseModel):
     city: str = "New Delhi"
 
 
+class ProductReviewIn(BaseModel):
+    account_name: str = ""
+    rating: int = 5
+    review_text: str
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -1117,6 +1123,33 @@ def list_products(type: str | None = None, q: str | None = None):
     return {"products": rows}
 
 
+@app.get("/api/products/{product_id}/reviews")
+def get_product_reviews(product_id: int):
+    with db_session() as conn:
+        reviews = [dict(r) for r in conn.execute("SELECT * FROM product_reviews WHERE product_id=? ORDER BY id DESC", (product_id,)).fetchall()]
+        avg_row = conn.execute("SELECT AVG(rating) as avg_r, COUNT(*) as cnt FROM product_reviews WHERE product_id=?", (product_id,)).fetchone()
+    avg_rating = round(float(avg_row["avg_r"]), 1) if avg_row and avg_row["avg_r"] else 5.0
+    count = int(avg_row["cnt"]) if avg_row else len(reviews)
+    return {
+        "product_id": product_id,
+        "average_rating": avg_rating,
+        "total_reviews": count,
+        "reviews": reviews,
+    }
+
+
+@app.post("/api/products/{product_id}/reviews")
+def add_product_review(product_id: int, req: ProductReviewIn, account: dict[str, Any] | None = Depends(get_optional_account)):
+    name = account["name"] if account else (req.account_name.strip() or "Verified Devotee")
+    now_d = date.today().isoformat()
+    with db_session() as conn:
+        conn.execute(
+            "INSERT INTO product_reviews(product_id, account_name, rating, review_text, verified_buyer, created_at) VALUES (?,?,?,?,1,?)",
+            (product_id, name, max(1, min(5, req.rating)), req.review_text.strip(), now_d),
+        )
+    return {"success": True, "message": "Review submitted successfully"}
+
+
 @app.get("/api/audio/{product_id}.wav")
 def stream_audio_wav(product_id: int):
     return Response(content=_build_bhajan_wav(product_id), media_type="audio/wav")
@@ -1431,6 +1464,86 @@ def download_invoice_pdf(order_id: int, account: dict[str, Any] = Depends(get_cu
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="invoice_{o["order_number"]}.pdf"'},
     )
+
+
+@app.get("/api/orders/{order_id}/tracking")
+def get_order_tracking(order_id: int, account: dict[str, Any] = Depends(get_current_account)):
+    with db_session() as conn:
+        o = conn.execute("SELECT * FROM orders WHERE id=? AND account_id=?", (order_id, account["id"])).fetchone()
+        if not o:
+            raise HTTPException(status_code=404, detail="Order not found.")
+        order_dict = dict(o)
+
+    # 4-Step Tracking State Machine
+    created_dt = datetime.fromisoformat(order_dict["created_at"]) if "T" in order_dict["created_at"] else datetime.now(timezone.utc)
+    step1_time = created_dt.strftime("%d %b %Y, %I:%M %p")
+    step2_time = (created_dt + timedelta(hours=6)).strftime("%d %b %Y, %I:%M %p")
+    step3_time = (created_dt + timedelta(hours=24)).strftime("%d %b %Y, %I:%M %p")
+    est_delivery = (created_dt + timedelta(days=3)).strftime("%d %b %Y")
+
+    is_cancelled = order_dict["payment_status"] == "Cancelled"
+    current_step = 0 if is_cancelled else 3 if order_dict["payment_status"] == "Paid" else 1
+
+    timeline = [
+        {
+            "step": 1,
+            "title_hi": "ऑर्डर स्वीकार (Order Placed)",
+            "title_en": "Order Placed & Confirmed",
+            "time": step1_time,
+            "description_hi": "आपका ऑर्डर व भुगतान सफलतापूर्वक सत्यापित कर लिया गया है।",
+            "description_en": "Your order and payment have been verified.",
+            "completed": not is_cancelled,
+        },
+        {
+            "step": 2,
+            "title_hi": "वैदिक विधि द्वारा अभिमंत्रित (Sanctified & Energized)",
+            "title_en": "Energized by Vedic Acharyas",
+            "time": step2_time,
+            "description_hi": "जातक के नाम व गोत्र से सिद्ध व चैतन्य किया गया।",
+            "description_en": "Item is consecrated and charged with Vedic mantras in native's name.",
+            "completed": current_step >= 2,
+        },
+        {
+            "step": 3,
+            "title_hi": "कूरियर रवाना (Dispatched)",
+            "title_en": "Dispatched via Express Courier",
+            "time": step3_time,
+            "description_hi": "पार्सल ब्लू डार्ट एक्सप्रेस को सौंप दिया गया है।",
+            "description_en": "Parcel handed over to BlueDart Express for rapid transit.",
+            "completed": current_step >= 3,
+        },
+        {
+            "step": 4,
+            "title_hi": "सुरक्षित डिलीवरी (Out for Delivery)",
+            "title_en": "Delivered to Doorstep",
+            "time": f"अपेक्षित: {est_delivery}",
+            "description_hi": "पार्सल आपके दिए गए पते पर सुरक्षित पहुँचा दिया जाएगा।",
+            "description_en": "Package arrives safely at your registered shipping address.",
+            "completed": current_step >= 4,
+        },
+    ]
+
+    return {
+        "order_number": order_dict["order_number"],
+        "status": "Cancelled" if is_cancelled else "Dispatched",
+        "current_step": current_step,
+        "courier": "BlueDart Express Courier",
+        "awb_number": f"BD-{order_dict['id']:04d}{int(created_dt.timestamp()) % 10000}",
+        "estimated_delivery": est_delivery,
+        "timeline": timeline,
+    }
+
+
+@app.get("/api/account/rewards")
+def get_account_rewards(account: dict[str, Any] = Depends(get_current_account)):
+    with db_session() as conn:
+        ledger = [dict(r) for r in conn.execute("SELECT * FROM reward_ledger WHERE account_id=? ORDER BY id DESC", (account["id"],)).fetchall()]
+    return {
+        "coins_balance": account["credits_balance"],
+        "rupees_value": round(account["credits_balance"] * 0.5, 2),
+        "redemption_rate": "100 Astro Coins = ₹50",
+        "ledger": ledger,
+    }
 
 
 # ---------------------------------------------------------------------------

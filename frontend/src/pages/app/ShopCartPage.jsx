@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { Download, MapPin, Music, ShoppingBag, Tag, Trash2, Volume2 } from "lucide-react";
+import { Download, MapPin, Music, ShoppingBag, Star, Tag, Trash2, Truck, Volume2 } from "lucide-react";
 import { apiFetch } from "../../api";
 import { useApp } from "../../context/AppContext";
+import OrderTrackingModal from "../../components/OrderTrackingModal";
+import ProductReviewsModal from "../../components/ProductReviewsModal";
 
 export default function ShopCartPage() {
   const { account, refreshAccountState, setPlayingAudio, demoLogin, showToast } = useApp();
@@ -13,6 +15,8 @@ export default function ShopCartPage() {
   const [couponCode, setCouponCode] = useState("ASTRO10");
   const [discountAmt, setDiscountAmt] = useState(0);
   const [useCredits, setUseCredits] = useState(false);
+  const [trackingOrderId, setTrackingOrderId] = useState(null);
+  const [selectedReviewProduct, setSelectedReviewProduct] = useState(null);
   const [pendingOrder, setPendingOrder] = useState(null);
   const [addrForm, setAddrForm] = useState({
     full_name: "Aarav Sharma",
@@ -198,6 +202,21 @@ export default function ShopCartPage() {
               </div>
               <h3 className="mt-2 text-sm font-bold text-white">{p.title}</h3>
               <p className="mt-1 text-slate-400 leading-relaxed">{p.description}</p>
+              {!p.is_audio && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedReviewProduct(p)}
+                  className="flex items-center gap-1.5 text-[11px] text-amber-300 hover:text-amber-200 transition pt-1"
+                >
+                  <div className="flex items-center text-amber-400">
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <Star key={s} className="h-3 w-3 fill-amber-400 text-amber-400" />
+                    ))}
+                  </div>
+                  <span className="font-bold">5.0</span>
+                  <span className="text-slate-400">(Customer Reviews →)</span>
+                </button>
+              )}
             </div>
             <div className="flex items-center justify-between border-t border-slate-800 pt-3">
               {p.is_audio ? (
@@ -324,6 +343,15 @@ export default function ShopCartPage() {
                           Cancel
                         </button>
                       )}
+                      {o.payment_status === "Paid" && (
+                        <button
+                          type="button"
+                          onClick={() => setTrackingOrderId(o.id)}
+                          className="flex items-center gap-1 rounded border border-emerald-500/40 bg-emerald-500/15 px-2.5 py-1 text-emerald-300 hover:bg-emerald-500/25 transition"
+                        >
+                          <Truck className="h-3.5 w-3.5" /> Track
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => downloadInvoice(o.id, o.order_number)}
@@ -338,6 +366,24 @@ export default function ShopCartPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* 4-Step Order Live Tracking Modal */}
+      {trackingOrderId && (
+        <OrderTrackingModal
+          orderId={trackingOrderId}
+          onClose={() => setTrackingOrderId(null)}
+          isHindi={account?.language === "Hi"}
+        />
+      )}
+
+      {/* Product Customer Reviews & Rating Modal */}
+      {selectedReviewProduct && (
+        <ProductReviewsModal
+          product={selectedReviewProduct}
+          onClose={() => setSelectedReviewProduct(null)}
+          isHindi={account?.language === "Hi"}
+        />
       )}
     </div>
   );

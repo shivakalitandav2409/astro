@@ -276,6 +276,16 @@ def init_db() -> None:
                 created_at TEXT NOT NULL
             );
 
+            CREATE TABLE IF NOT EXISTS product_reviews (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+                account_name TEXT NOT NULL,
+                rating INTEGER NOT NULL DEFAULT 5,
+                review_text TEXT NOT NULL,
+                verified_buyer INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL
+            );
+
             CREATE TABLE IF NOT EXISTS acharyas (
                 id INTEGER PRIMARY KEY,
                 name TEXT NOT NULL,

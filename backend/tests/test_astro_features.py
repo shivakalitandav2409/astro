@@ -107,3 +107,39 @@ def test_full_kundli_bundle_kp_and_weekly():
     assert "nl" in asc
     assert "sl" in asc
     assert "ssl" in asc
+
+    # Check KP Cusp Chart
+    assert "kp_cusps" in bundle
+    assert len(bundle["kp_cusps"]["cusps"]) == 12
+    c1 = bundle["kp_cusps"]["cusps"][0]
+    assert c1["cusp_number"] == 1
+    assert "rl" in c1 and "sl" in c1 and "ssl" in c1
+    assert "sandhi_start_dms" in c1
+    assert "occupants" in c1
+
+    # Check Visual Upay Chart
+    assert "visual_upay_chart" in bundle
+    assert len(bundle["visual_upay_chart"]) == 12
+    u1 = bundle["visual_upay_chart"][0]
+    assert u1["house"] == 1
+    assert "substance_hi" in u1
+    assert "rule_hi" in u1
+    assert "timing_hi" in u1
+    assert "parhez_hi" in u1
+
+
+def test_category_dates_calculation():
+    from backend.astro_engine.ephemeris import compute_category_dates
+    chart = compute_chart(
+        dob="1995-08-15",
+        birth_time="09:30",
+        latitude=28.6139,
+        longitude=77.2090,
+    )
+    res = compute_category_dates(chart, category="marriage", days_ahead=30)
+    assert "shubh_dates" in res
+    assert "varjit_dates" in res
+    assert len(res["shubh_dates"]) > 0
+    assert len(res["varjit_dates"]) > 0
+    assert len(res["shubh_dates"]) + len(res["varjit_dates"]) <= 30
+

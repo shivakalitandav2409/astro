@@ -378,6 +378,17 @@ def seed_all() -> None:
             ],
         )
 
+        conn.executemany(
+            "INSERT INTO product_reviews (product_id, account_name, rating, review_text, verified_buyer, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+            [
+                (1, "Vikram Rathore", 5, "लाल किताब अमृत फाइल से मिले उपायों से व्यापार में अभूतपूर्व प्रगति हुई। बहुत सटीक गणना है।", 1, "2026-11-20"),
+                (1, "Sunita Mehra", 5, "Excellent personalized report with clear remedies. Guruji's methods are truly divine.", 1, "2026-11-22"),
+                (2, "Ramesh Chandra", 5, "सूर्य तांबे का सिक्का उपाय करने के 40 दिन के भीतर कार्यक्षेत्र में स्थिरता आई।", 1, "2026-11-15"),
+                (3, "Deepak Verma", 5, "शुद्ध चांदी का चौकोर टुकड़ा बहुत ही उच्च गुणवत्ता का है। सर्टिफाइड प्रोडक्ट।", 1, "2026-11-18"),
+                (4, "Pooja Gupta", 5, "मंगल बद किट ने मानसिक तनाव और पारिवारिक कलह को पूर्णतः शांत कर दिया। धन्यवाद वशिष्ठ ज्योतिष।", 1, "2026-11-25"),
+            ],
+        )
+
         # 7. Pre-seeded Demo Accounts (Free Consumer, Premium Consumer, Acharya Gold, Acharya Platinum)
         # Note: Distinct sandbox demo accounts, not third-party production credentials.
         pw = hash_password("Demo@1234")
